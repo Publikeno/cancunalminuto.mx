@@ -2,9 +2,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { Zap, TrendingUp, Clock, CheckCircle, AlertCircle, Settings, FileText, Rss, RefreshCw } from "lucide-react";
+import { Zap, TrendingUp, Clock, CheckCircle, AlertCircle, Settings, FileText, Rss, RefreshCw, ExternalLink } from "lucide-react";
 import { useWordPressData } from "@/hooks/useWordPressData";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useLocation } from "wouter";
 
 const StatCard = ({ label, value, icon: Icon, trend, loading }: any) => (
   <Card className="border-slate-200 shadow-sm hover:shadow-md transition-shadow">
@@ -34,6 +35,7 @@ const StatCard = ({ label, value, icon: Icon, trend, loading }: any) => (
 );
 
 export default function Home() {
+  const [, setLocation] = useLocation();
   const { stats, dailyStats, recentLogs, rssSources, loading, error, refetch } = useWordPressData();
 
   const dashboardStats = [
@@ -105,19 +107,27 @@ export default function Home() {
             <p className="text-blue-100 mb-6">
               Monitorea en tiempo real la generación y publicación de artículos desde tu WordPress.
             </p>
-            <div className="flex gap-3">
-              <Button className="bg-white text-blue-600 hover:bg-blue-50">
+            <div className="flex gap-3 flex-wrap">
+              <Button 
+                className="bg-white text-blue-600 hover:bg-blue-50"
+                onClick={() => setLocation("#estadisticas")}
+              >
                 Comenzar
               </Button>
-              <Button variant="outline" className="border-white text-white hover:bg-blue-600/20">
-                Documentación
+              <Button 
+                variant="outline" 
+                className="border-white text-white hover:bg-blue-600/20 gap-2"
+                onClick={() => window.open('https://cancunalminuto.mx', '_blank')}
+              >
+                Ir a WordPress
+                <ExternalLink className="w-4 h-4" />
               </Button>
             </div>
           </div>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div id="estadisticas" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {dashboardStats.map((stat, idx) => (
             <StatCard key={idx} {...stat} loading={loading} />
           ))}
@@ -313,8 +323,12 @@ export default function Home() {
         <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-xl p-8 text-white text-center">
           <h3 className="text-2xl font-bold mb-2">¿Listo para automatizar tu contenido?</h3>
           <p className="text-slate-300 mb-6">Comienza a generar y publicar artículos automáticamente hoy mismo.</p>
-          <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-            Acceder al Dashboard Completo
+          <Button 
+            className="bg-blue-600 hover:bg-blue-700 text-white gap-2"
+            onClick={() => window.open('https://cancunalminuto.mx/wp-admin', '_blank')}
+          >
+            Acceder a WordPress
+            <ExternalLink className="w-4 h-4" />
           </Button>
         </div>
       </main>
