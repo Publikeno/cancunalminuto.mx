@@ -3,7 +3,9 @@
  * Consume datos de cancunalminuto.mx/wp-json
  */
 
+// URL de WordPress con ruta personalizada
 const WP_BASE_URL = "https://cancunalminuto.mx/wp-json/wp/v2";
+// Nota: La ruta admin es /admin_wp pero la API REST está en /wp-json
 
 export interface WPPost {
   id: number;
