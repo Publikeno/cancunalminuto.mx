@@ -2,10 +2,67 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { Zap, TrendingUp, Clock, CheckCircle, AlertCircle, Settings, FileText, Rss, RefreshCw, ExternalLink } from "lucide-react";
+import { Zap, TrendingUp, Clock, CheckCircle, AlertCircle, Settings, FileText, Rss, RefreshCw, ExternalLink, Lock, LogOut } from "lucide-react";
 import { useWordPressData } from "@/hooks/useWordPressData";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation } from "wouter";
+import { useEffect, useState } from "react";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+
+const DASHBOARD_CODE = "032332";
+
+const LoginModal = ({ isOpen, onLogin }: { isOpen: boolean; onLogin: () => void }) => {
+  const [code, setCode] = useState("");
+  const [error, setError] = useState("");
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (code === DASHBOARD_CODE) {
+      localStorage.setItem("dashboardAccess", "true");
+      setCode("");
+      setError("");
+      onLogin();
+    } else {
+      setError("Código incorrecto");
+      setCode("");
+    }
+  };
+
+  return (
+    <Dialog open={isOpen}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Lock className="w-5 h-5" />
+            Acceso Restringido
+          </DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Ingresa el código de 6 dígitos para acceder al dashboard
+          </p>
+          <Input
+            type="text"
+            inputMode="numeric"
+            maxLength={6}
+            placeholder="000000"
+            value={code}
+            onChange={(e) => {
+              setCode(e.target.value.replace(/\D/g, "").slice(0, 6));
+              setError("");
+            }}
+            className="text-center text-2xl tracking-widest font-mono"
+          />
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <Button type="submit" className="w-full" disabled={code.length !== 6}>
+            Acceder
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 const StatCard = ({ label, value, icon: Icon, trend, loading }: any) => (
   <Card className="border-slate-200 shadow-sm hover:shadow-md transition-shadow">
@@ -37,6 +94,34 @@ const StatCard = ({ label, value, icon: Icon, trend, loading }: any) => (
 export default function Home() {
   const [, setLocation] = useLocation();
   const { stats, dailyStats, recentLogs, rssSources, loading, error, refetch } = useWordPressData();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
+
+  useEffect(() => {
+    const hasAccess = localStorage.getItem("dashboardAccess") === "true";
+    setIsAuthenticated(hasAccess);
+    if (!hasAccess) {
+      setShowLogin(true);
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("dashboardAccess");
+    setIsAuthenticated(false);
+    setShowLogin(true);
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <LoginModal
+        isOpen={showLogin}
+        onLogin={() => {
+          setIsAuthenticated(true);
+          setShowLogin(false);
+        }}
+      />
+    );
+  }
 
   const dashboardStats = [
     { label: "Artículos Procesados", value: stats?.totalProcessed || 0, icon: FileText, trend: stats?.trendProcessed || "+0%" },
@@ -84,6 +169,10 @@ export default function Home() {
             </Button>
             <Button variant="ghost" size="sm">
               <Settings className="w-4 h-4" />
+            </Button>
+            <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-2">
+              <LogOut className="w-4 h-4" />
+              Salir
             </Button>
           </div>
         </div>
@@ -318,29 +407,7 @@ export default function Home() {
             </Card>
           </TabsContent>
         </Tabs>
-
-        {/* Footer CTA */}
-        <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-xl p-8 text-white text-center">
-          <h3 className="text-2xl font-bold mb-2">¿Listo para automatizar tu contenido?</h3>
-          <p className="text-slate-300 mb-6">Comienza a generar y publicar artículos automáticamente hoy mismo.</p>
-          <Button 
-            className="bg-blue-600 hover:bg-blue-700 text-white gap-2"
-            onClick={() => window.open('https://cancunalminuto.mx/wp-admin', '_blank')}
-          >
-            Acceder a WordPress
-            <ExternalLink className="w-4 h-4" />
-          </Button>
-        </div>
       </main>
-
-      {/* Footer */}
-      <footer className="border-t border-slate-200 bg-white mt-12">
-        <div className="container mx-auto px-4 py-8 text-center text-slate-600 text-sm">
-          <p>© 2026 Cancún al Minuto. Todos los derechos reservados.</p>
-          <p className="mt-2">Dashboard de Automatización de Noticias | Powered by AI</p>
-          <p className="mt-2 text-xs text-slate-500">Datos obtenidos de: {new Date().toLocaleString("es-MX")}</p>
-        </div>
-      </footer>
     </div>
   );
 }
