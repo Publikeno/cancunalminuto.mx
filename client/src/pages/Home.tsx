@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Zap, TrendingUp, Clock, CheckCircle, AlertCircle, Settings, FileText, Rss, RefreshCw, ExternalLink, Lock, LogOut } from "lucide-react";
 import { useWordPressData } from "@/hooks/useWordPressData";
+import { fetchAllPosts } from "@/lib/wpService";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation } from "wouter";
 import { useEffect, useState } from "react";
@@ -96,6 +97,7 @@ export default function Home() {
   const { stats, dailyStats, recentLogs, rssSources, loading, error, refetch } = useWordPressData();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
+  const [recentPosts, setRecentPosts] = useState<any[]>([]);
 
   useEffect(() => {
     const hasAccess = localStorage.getItem("dashboardAccess") === "true";
@@ -103,6 +105,13 @@ export default function Home() {
     if (!hasAccess) {
       setShowLogin(true);
     }
+    
+    // Cargar posts recientes
+    const loadPosts = async () => {
+      const posts = await fetchAllPosts();
+      setRecentPosts(posts.slice(0, 5));
+    };
+    loadPosts();
   }, []);
 
   const handleLogout = () => {
@@ -298,11 +307,43 @@ export default function Home() {
 
         {/* Tabs Section */}
         <Tabs defaultValue="logs" className="mb-8">
-          <TabsList className="grid w-full grid-cols-3 bg-slate-100">
+          <TabsList className="grid w-full grid-cols-4 bg-slate-100">
+            <TabsTrigger value="noticias">Noticias</TabsTrigger>
             <TabsTrigger value="logs">Registros Recientes</TabsTrigger>
             <TabsTrigger value="sources">Fuentes RSS</TabsTrigger>
             <TabsTrigger value="settings">Configuración</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="noticias" className="mt-4">
+            <Card className="border-slate-200 shadow-sm">
+              <CardHeader>
+                <CardTitle>Noticias Recientes</CardTitle>
+                <CardDescription>Últimos artículos publicados en WordPress</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {loading || recentPosts.length === 0 ? (
+                  <div className="space-y-3">
+                    {[...Array(3)].map((_, i) => (
+                      <Skeleton key={i} className="h-20 w-full" />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {recentPosts.map((post) => (
+                      <div key={post.id} className="border border-slate-200 rounded-lg p-4 hover:bg-slate-50 transition-colors">
+                        <h3 className="font-semibold text-slate-900 mb-1">{post.title.rendered}</h3>
+                        <p className="text-sm text-slate-600 mb-2 line-clamp-2">{post.excerpt.rendered.replace(/<[^>]*>/g, '')}</p>
+                        <div className="flex items-center justify-between text-xs text-slate-500">
+                          <span>{new Date(post.date).toLocaleDateString('es-MX')}</span>
+                          <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded">{post.status === 'publish' ? 'Publicado' : 'Borrador'}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="logs" className="mt-4">
             <Card className="border-slate-200 shadow-sm">
