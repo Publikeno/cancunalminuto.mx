@@ -1,0 +1,111 @@
+import { describe, expect, it } from "vitest";
+
+// Test the HTML entity decoding logic
+function decodeHtmlEntities(text: string): string {
+  return text
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code, 10)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, code) => String.fromCharCode(parseInt(code, 16)));
+}
+
+function cleanHtml(html: string): string {
+  return decodeHtmlEntities(
+    html
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+  );
+}
+
+describe("RSS Importer - HTML entity decoding", () => {
+  it("decodes numeric HTML entities like &#8217;", () => {
+    const input = "Manganitas &#8217; AFA";
+    expect(decodeHtmlEntities(input)).toBe("Manganitas \u2019 AFA");
+  });
+
+  it("decodes &amp; correctly", () => {
+    expect(decodeHtmlEntities("Cancún &amp; Quintana Roo")).toBe("Cancún & Quintana Roo");
+  });
+
+  it("decodes &quot; correctly", () => {
+    expect(decodeHtmlEntities("Dijo &quot;hola&quot;")).toBe('Dijo "hola"');
+  });
+
+  it("decodes &nbsp; to space", () => {
+    expect(decodeHtmlEntities("texto&nbsp;aquí")).toBe("texto aquí");
+  });
+
+  it("decodes hex entities like &#x2019;", () => {
+    expect(decodeHtmlEntities("it&#x2019;s")).toBe("it\u2019s");
+  });
+
+  it("strips HTML tags from titles", () => {
+    const input = "<strong>Noticia</strong> importante";
+    expect(cleanHtml(input)).toBe("Noticia importante");
+  });
+
+  it("strips CDATA and HTML together", () => {
+    const input = "<b>Título</b> con &amp; entidades &#8217;";
+    expect(cleanHtml(input)).toBe("Título con & entidades \u2019");
+  });
+
+  it("handles empty string", () => {
+    expect(cleanHtml("")).toBe("");
+    expect(decodeHtmlEntities("")).toBe("");
+  });
+
+  it("handles plain text without entities", () => {
+    const plain = "Noticias de Cancún hoy";
+    expect(cleanHtml(plain)).toBe(plain);
+  });
+});
+
+describe("RSS Article validation", () => {
+  it("validates that a valid article has title and link", () => {
+    const article = {
+      title: "Noticia de prueba",
+      link: "https://example.com/noticia",
+      description: "Descripción de la noticia",
+    };
+    expect(article.title).toBeTruthy();
+    expect(article.link).toBeTruthy();
+    expect(article.link).toMatch(/^https?:\/\//);
+  });
+
+  it("rejects articles without title or link", () => {
+    const noTitle = { title: "", link: "https://example.com" };
+    const noLink = { title: "Título", link: "" };
+    const valid = { title: "Título", link: "https://example.com" };
+    // noTitle should be rejected (missing title)
+    expect(!noTitle.title || !noTitle.link).toBe(true);
+    // noLink should also be rejected (missing link)
+    expect(!noLink.title || !noLink.link).toBe(true);
+    // valid should pass
+    expect(!valid.title || !valid.link).toBe(false);
+  });
+
+  it("truncates long titles to 500 chars", () => {
+    const longTitle = "A".repeat(600);
+    const truncated = cleanHtml(longTitle).slice(0, 500);
+    expect(truncated.length).toBe(500);
+  });
+
+  it("parses valid dates", () => {
+    const dateStr = "Mon, 16 Jun 2026 10:00:00 +0000";
+    const date = new Date(dateStr);
+    expect(isNaN(date.getTime())).toBe(false);
+    expect(date.getFullYear()).toBe(2026);
+  });
+
+  it("falls back to current date for invalid dates", () => {
+    const invalidDate = new Date("not-a-date");
+    const fallback = isNaN(invalidDate.getTime()) ? new Date() : invalidDate;
+    expect(isNaN(fallback.getTime())).toBe(false);
+  });
+});

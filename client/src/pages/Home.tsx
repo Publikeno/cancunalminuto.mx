@@ -1,454 +1,367 @@
+import DashboardLayout from "@/components/DashboardLayout";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { Zap, TrendingUp, Clock, CheckCircle, AlertCircle, Settings, FileText, Rss, RefreshCw, ExternalLink, Lock, LogOut } from "lucide-react";
-import { useWordPressData } from "@/hooks/useWordPressData";
-import { fetchAllPosts } from "@/lib/wpService";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useLocation } from "wouter";
-import { useEffect, useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
+import { trpc } from "@/lib/trpc";
+import {
+  Calendar,
+  Clock,
+  ExternalLink,
+  RefreshCw,
+  Search,
+  Zap,
+} from "lucide-react";
+import { useState } from "react";
+import { useLocation } from "wouter";
 
-const DASHBOARD_CODE = "032332";
+const CATEGORIES = ["Todos", "Cancún", "Quintana Roo", "Nacional", "Deportes", "General"];
 
-const LoginModal = ({ isOpen, onLogin }: { isOpen: boolean; onLogin: () => void }) => {
-  const [code, setCode] = useState("");
-  const [error, setError] = useState("");
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (code === DASHBOARD_CODE) {
-      localStorage.setItem("dashboardAccess", "true");
-      setCode("");
-      setError("");
-      onLogin();
-    } else {
-      setError("Código incorrecto");
-      setCode("");
-    }
-  };
-
-  return (
-    <Dialog open={isOpen}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Lock className="w-5 h-5" />
-            Acceso Restringido
-          </DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Ingresa el código de 6 dígitos para acceder al dashboard
-          </p>
-          <Input
-            type="text"
-            inputMode="numeric"
-            maxLength={6}
-            placeholder="000000"
-            value={code}
-            onChange={(e) => {
-              setCode(e.target.value.replace(/\D/g, "").slice(0, 6));
-              setError("");
-            }}
-            className="text-center text-2xl tracking-widest font-mono"
-          />
-          {error && <p className="text-sm text-destructive">{error}</p>}
-          <Button type="submit" className="w-full" disabled={code.length !== 6}>
-            Acceder
-          </Button>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
+const categoryColors: Record<string, string> = {
+  "Cancún": "bg-blue-100 text-blue-700 border-blue-200",
+  "Quintana Roo": "bg-teal-100 text-teal-700 border-teal-200",
+  "Nacional": "bg-purple-100 text-purple-700 border-purple-200",
+  "Deportes": "bg-orange-100 text-orange-700 border-orange-200",
+  "General": "bg-slate-100 text-slate-700 border-slate-200",
 };
 
-const StatCard = ({ label, value, icon: Icon, trend, loading }: any) => (
-  <Card className="border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-    <CardHeader className="pb-3">
-      <div className="flex items-start justify-between">
-        <div>
-          <CardDescription className="text-slate-600">{label}</CardDescription>
-          {loading ? (
-            <Skeleton className="h-8 w-24 mt-2" />
-          ) : (
-            <p className="text-2xl font-bold text-slate-900 mt-1">{value}</p>
-          )}
+function formatDate(date: Date | string) {
+  const d = new Date(date);
+  return d.toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function timeAgo(date: Date | string) {
+  const d = new Date(date);
+  const now = new Date();
+  const diff = Math.floor((now.getTime() - d.getTime()) / 1000);
+  if (diff < 60) return "hace un momento";
+  if (diff < 3600) return `hace ${Math.floor(diff / 60)} min`;
+  if (diff < 86400) return `hace ${Math.floor(diff / 3600)} h`;
+  return formatDate(d);
+}
+
+function ArticleSkeleton() {
+  return (
+    <Card className="overflow-hidden">
+      <CardContent className="p-0">
+        <Skeleton className="h-48 w-full" />
+        <div className="p-4 space-y-2">
+          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-5 w-full" />
+          <Skeleton className="h-5 w-3/4" />
+          <Skeleton className="h-4 w-1/2" />
         </div>
-        <div className="bg-blue-50 p-2 rounded-lg">
-          <Icon className="w-5 h-5 text-blue-600" />
+      </CardContent>
+    </Card>
+  );
+}
+
+function ArticleCard({ article }: { article: any }) {
+  const catColor = categoryColors[article.category] || categoryColors["General"];
+
+  return (
+    <a
+      href={article.sourceUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block group"
+    >
+    <Card className="overflow-hidden hover:shadow-md transition-all duration-200 cursor-pointer border-slate-200">
+      <CardContent className="p-0">
+        {/* Imagen */}
+        <div className="relative h-48 bg-gradient-to-br from-slate-100 to-slate-200 overflow-hidden">
+          {article.imageUrl ? (
+            <img
+              src={article.imageUrl}
+              alt={article.title}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = "none";
+              }}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <Zap className="w-10 h-10 text-slate-300" />
+            </div>
+          )}
+          <div className="absolute top-2 left-2">
+            <Badge className={`text-xs border ${catColor}`} variant="outline">
+              {article.category}
+            </Badge>
+          </div>
+        </div>
+
+        {/* Contenido */}
+        <div className="p-4">
+          <h3 className="font-semibold text-slate-900 text-sm leading-snug mb-2 line-clamp-2 group-hover:text-red-700 transition-colors">
+            {article.title}
+          </h3>
+          {article.excerpt && (
+            <p className="text-xs text-slate-500 line-clamp-2 mb-3">
+              {article.excerpt}
+            </p>
+          )}
+          <div className="flex items-center justify-between text-xs text-slate-400">
+            <div className="flex items-center gap-1">
+              <Clock className="w-3 h-3" />
+              <span>{timeAgo(article.publishedAt)}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="truncate max-w-[100px]">{article.sourceName}</span>
+              <ExternalLink className="w-3 h-3" />
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+    </a>
+  );
+}
+
+function HeroArticle({ article }: { article: any }) {
+  const catColor = categoryColors[article.category] || categoryColors["General"];
+  return (
+    <a
+      href={article.sourceUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block group"
+    >
+      <div className="relative rounded-xl overflow-hidden h-80 bg-gradient-to-br from-slate-800 to-slate-900">
+        {article.imageUrl && (
+          <img
+            src={article.imageUrl}
+            alt={article.title}
+            className="w-full h-full object-cover opacity-60 group-hover:opacity-70 transition-opacity"
+            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+          />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 p-6">
+          <Badge className={`text-xs border mb-2 ${catColor}`} variant="outline">
+            {article.category}
+          </Badge>
+          <h2 className="text-white font-bold text-xl leading-tight mb-2 group-hover:text-red-300 transition-colors">
+            {article.title}
+          </h2>
+          {article.excerpt && (
+            <p className="text-slate-300 text-sm line-clamp-2 mb-3">{article.excerpt}</p>
+          )}
+          <div className="flex items-center gap-3 text-xs text-slate-400">
+            <div className="flex items-center gap-1">
+              <Calendar className="w-3 h-3" />
+              <span>{formatDate(article.publishedAt)}</span>
+            </div>
+            <span>•</span>
+            <span>{article.sourceName}</span>
+          </div>
         </div>
       </div>
-    </CardHeader>
-    <CardContent>
-      {loading ? (
-        <Skeleton className="h-4 w-16" />
-      ) : (
-        <p className="text-xs text-green-600 font-medium">{trend}</p>
-      )}
-    </CardContent>
-  </Card>
-);
+    </a>
+  );
+}
 
 export default function Home() {
   const [, setLocation] = useLocation();
-  const { stats, dailyStats, recentLogs, rssSources, loading, error, refetch } = useWordPressData();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [showLogin, setShowLogin] = useState(false);
-  const [recentPosts, setRecentPosts] = useState<any[]>([]);
+  const [activeCategory, setActiveCategory] = useState("Todos");
+  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [page, setPage] = useState(0);
+  const LIMIT = 12;
 
-  useEffect(() => {
-    const hasAccess = localStorage.getItem("dashboardAccess") === "true";
-    setIsAuthenticated(hasAccess);
-    if (!hasAccess) {
-      setShowLogin(true);
-    }
-    
-    // Cargar posts recientes
-    const loadPosts = async () => {
-      const posts = await fetchAllPosts();
-      setRecentPosts(posts.slice(0, 5));
-    };
-    loadPosts();
-  }, []);
+  const { data, isLoading, refetch, isFetching, error } = trpc.news.getArticles.useQuery({
+    limit: LIMIT,
+    offset: page * LIMIT,
+    category: activeCategory === "Todos" ? undefined : activeCategory,
+    search: search || undefined,
+  });
 
-  const handleLogout = () => {
-    localStorage.removeItem("dashboardAccess");
-    setIsAuthenticated(false);
-    setShowLogin(true);
+  const importMutation = trpc.news.importFromRss.useMutation({
+    onSuccess: (result) => {
+      refetch();
+    },
+  });
+
+  const articles = data?.items ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = Math.ceil(total / LIMIT);
+  const heroArticle = articles[0];
+  const gridArticles = articles.slice(1);
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSearch(searchInput);
+    setPage(0);
   };
 
-  if (!isAuthenticated) {
-    return (
-      <LoginModal
-        isOpen={showLogin}
-        onLogin={() => {
-          setIsAuthenticated(true);
-          setShowLogin(false);
-        }}
-      />
-    );
-  }
-
-  const dashboardStats = [
-    { label: "Artículos Procesados", value: stats?.totalProcessed || 0, icon: FileText, trend: stats?.trendProcessed || "+0%" },
-    { label: "Artículos Generados", value: stats?.totalGenerated || 0, icon: Zap, trend: stats?.trendGenerated || "+0%" },
-    { label: "Artículos Publicados", value: stats?.totalPublished || 0, icon: CheckCircle, trend: stats?.trendPublished || "+0%" },
-    { label: "Fuentes RSS", value: stats?.totalSources || 0, icon: Rss, trend: stats?.trendSources || "+0" },
-  ];
-
-  const statusColors = {
-    "Completado": "bg-green-50 text-green-700 border-green-200",
-    "En progreso": "bg-blue-50 text-blue-700 border-blue-200",
-    "Error": "bg-red-50 text-red-700 border-red-200",
-  };
-
-  const statusIcons = {
-    "Completado": <CheckCircle className="w-4 h-4" />,
-    "En progreso": <Clock className="w-4 h-4 animate-spin" />,
-    "Error": <AlertCircle className="w-4 h-4" />,
+  const handleCategoryChange = (cat: string) => {
+    setActiveCategory(cat);
+    setPage(0);
+    setSearch("");
+    setSearchInput("");
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
-      {/* Header */}
-      <header className="border-b border-slate-200 bg-white/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center">
-              <Zap className="w-6 h-6 text-white" />
+    <DashboardLayout>
+      <div className="min-h-screen bg-slate-50">
+        {/* Top bar */}
+        <div className="bg-white border-b border-slate-200 sticky top-0 z-30">
+          <div className="px-4 py-3 flex items-center justify-between gap-4">
+            {/* Logo (visible en desktop) */}
+            <div className="hidden md:flex items-center gap-2 shrink-0">
+              <div className="w-7 h-7 bg-red-600 rounded-md flex items-center justify-center">
+                <Zap className="w-4 h-4 text-white" />
+              </div>
+              <span className="font-bold text-slate-900">Cancún al Minuto</span>
             </div>
-            <div>
-              <h1 className="text-xl font-bold text-slate-900">Cancún al Minuto</h1>
-              <p className="text-xs text-slate-500">Dashboard de Automatización</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
+
+            {/* Buscador */}
+            <form onSubmit={handleSearch} className="flex-1 max-w-lg flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Input
+                  placeholder="Buscar noticias..."
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  className="pl-9 bg-slate-50 border-slate-200 focus:bg-white"
+                />
+              </div>
+              <Button type="submit" size="sm" className="bg-red-600 hover:bg-red-700 text-white">
+                Buscar
+              </Button>
+            </form>
+
+            {/* Botón importar */}
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
-              onClick={refetch}
-              disabled={loading}
-              className="gap-2"
+              onClick={() => importMutation.mutate()}
+              disabled={importMutation.isPending || isFetching}
+              className="gap-2 shrink-0"
             >
-              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-              {loading ? "Actualizando..." : "Actualizar"}
+              <RefreshCw className={`w-4 h-4 ${importMutation.isPending ? "animate-spin" : ""}`} />
+              <span className="hidden sm:inline">
+                {importMutation.isPending ? "Importando..." : "Actualizar"}
+              </span>
             </Button>
-            <Button variant="ghost" size="sm">
-              <Settings className="w-4 h-4" />
-            </Button>
-            <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-2">
-              <LogOut className="w-4 h-4" />
-              Salir
-            </Button>
+          </div>
+
+          {/* Categorías */}
+          <div className="px-4 pb-2 flex gap-2 overflow-x-auto scrollbar-hide">
+            {CATEGORIES.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => handleCategoryChange(cat)}
+                className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                  activeCategory === cat
+                    ? "bg-red-600 text-white"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
           </div>
         </div>
-      </header>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        {/* Error Alert */}
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-sm text-red-700">
-              <strong>Error:</strong> {error}
-            </p>
+        {/* Contenido principal */}
+        <div className="p-4 max-w-7xl mx-auto">
+          {/* Estado de búsqueda */}
+          {search && (
+            <div className="mb-4 flex items-center gap-2">
+              <span className="text-sm text-slate-600">
+                Resultados para: <strong>"{search}"</strong> ({total} artículos)
+              </span>
+              <button
+                onClick={() => { setSearch(""); setSearchInput(""); setPage(0); }}
+                className="text-xs text-red-600 hover:underline"
+              >
+                Limpiar
+              </button>
+            </div>
+          )}
+
+          {/* Estado de error */}
+          {error && (
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-700">
+                Error al cargar noticias. Por favor intenta de nuevo.
+              </p>
+              <button onClick={() => refetch()} className="mt-2 text-xs text-red-600 hover:underline">
+                Reintentar
+              </button>
+            </div>
+          )}
+
+          {/* Sin artículos */}
+          {!isLoading && !error && articles.length === 0 && (
+            <div className="text-center py-20">
+              <Zap className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-slate-700 mb-2">
+                {search ? "No se encontraron noticias" : "No hay noticias aún"}
+              </h3>
+              <p className="text-sm text-slate-500 mb-6">
+                {search
+                  ? "Intenta con otras palabras clave"
+                  : "Haz clic en 'Actualizar' para importar noticias de las fuentes RSS"}
+              </p>
+              {!search && (
+                <Button
+                  onClick={() => importMutation.mutate()}
+                  disabled={importMutation.isPending}
+                  className="bg-red-600 hover:bg-red-700 text-white gap-2"
+                >
+                  <RefreshCw className={`w-4 h-4 ${importMutation.isPending ? "animate-spin" : ""}`} />
+                  Importar noticias ahora
+                </Button>
+              )}
+            </div>
+          )}
+
+          {/* Hero article */}
+          {!isLoading && heroArticle && (
+            <div className="mb-6">
+              <HeroArticle article={heroArticle} />
+            </div>
+          )}
+          {isLoading && <Skeleton className="h-80 w-full rounded-xl mb-6" />}
+
+          {/* Grid de artículos */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-6">
+            {isLoading
+              ? Array.from({ length: 8 }).map((_, i) => <ArticleSkeleton key={i} />)
+              : gridArticles.map((article) => (
+                  <ArticleCard key={article.id} article={article} />
+                ))}
           </div>
-        )}
 
-        {/* Hero Section */}
-        <div className="mb-12">
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl p-8 text-white shadow-lg">
-            <h2 className="text-3xl font-bold mb-2">Dashboard de Automatización de Noticias</h2>
-            <p className="text-blue-100 mb-6">
-              Monitorea en tiempo real la generación y publicación de artículos desde tu WordPress.
-            </p>
-            <div className="flex gap-3 flex-wrap">
-              <Button 
-                className="bg-white text-blue-600 hover:bg-blue-50"
-                onClick={() => setLocation("#estadisticas")}
+          {/* Paginación */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 pb-8">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                disabled={page === 0}
               >
-                Comenzar
+                Anterior
               </Button>
-              <Button 
-                variant="outline" 
-                className="border-white text-white hover:bg-blue-600/20 gap-2"
-                onClick={() => window.open('https://cancunalminuto.mx', '_blank')}
+              <span className="text-sm text-slate-600">
+                Página {page + 1} de {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                disabled={page >= totalPages - 1}
               >
-                Ir a WordPress
-                <ExternalLink className="w-4 h-4" />
+                Siguiente
               </Button>
             </div>
-          </div>
+          )}
         </div>
-
-        {/* Stats Grid */}
-        <div id="estadisticas" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {dashboardStats.map((stat, idx) => (
-            <StatCard key={idx} {...stat} loading={loading} />
-          ))}
-        </div>
-
-        {/* Charts Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* Line Chart */}
-          <Card className="border-slate-200 shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-lg">Tendencia de Artículos</CardTitle>
-              <CardDescription>Últimos 7 días</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loading || dailyStats.length === 0 ? (
-                <div className="h-80 flex items-center justify-center">
-                  <div className="text-center">
-                    <Clock className="w-8 h-8 text-slate-400 mx-auto mb-2 animate-spin" />
-                    <p className="text-sm text-slate-500">Cargando datos...</p>
-                  </div>
-                </div>
-              ) : (
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={dailyStats}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="date" stroke="#94a3b8" />
-                    <YAxis stroke="#94a3b8" />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "6px" }}
-                      labelStyle={{ color: "#0f172a" }}
-                    />
-                    <Legend />
-                    <Line type="monotone" dataKey="procesados" stroke="#3b82f6" strokeWidth={2} dot={{ fill: "#3b82f6" }} />
-                    <Line type="monotone" dataKey="generados" stroke="#8b5cf6" strokeWidth={2} dot={{ fill: "#8b5cf6" }} />
-                    <Line type="monotone" dataKey="publicados" stroke="#10b981" strokeWidth={2} dot={{ fill: "#10b981" }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Bar Chart */}
-          <Card className="border-slate-200 shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-lg">Distribución por Estado</CardTitle>
-              <CardDescription>Resumen actual</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loading || !stats ? (
-                <div className="h-80 flex items-center justify-center">
-                  <div className="text-center">
-                    <Clock className="w-8 h-8 text-slate-400 mx-auto mb-2 animate-spin" />
-                    <p className="text-sm text-slate-500">Cargando datos...</p>
-                  </div>
-                </div>
-              ) : (
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart
-                    data={[
-                      { estado: "Procesados", cantidad: stats.totalProcessed },
-                      { estado: "Generados", cantidad: stats.totalGenerated },
-                      { estado: "Publicados", cantidad: stats.totalPublished },
-                    ]}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="estado" stroke="#94a3b8" />
-                    <YAxis stroke="#94a3b8" />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "6px" }}
-                      labelStyle={{ color: "#0f172a" }}
-                    />
-                    <Bar dataKey="cantidad" fill="#3b82f6" radius={[8, 8, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Tabs Section */}
-        <Tabs defaultValue="logs" className="mb-8">
-          <TabsList className="grid w-full grid-cols-4 bg-slate-100">
-            <TabsTrigger value="noticias">Noticias</TabsTrigger>
-            <TabsTrigger value="logs">Registros Recientes</TabsTrigger>
-            <TabsTrigger value="sources">Fuentes RSS</TabsTrigger>
-            <TabsTrigger value="settings">Configuración</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="noticias" className="mt-4">
-            <Card className="border-slate-200 shadow-sm">
-              <CardHeader>
-                <CardTitle>Noticias Recientes</CardTitle>
-                <CardDescription>Últimos artículos publicados en WordPress</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {loading || recentPosts.length === 0 ? (
-                  <div className="space-y-3">
-                    {[...Array(3)].map((_, i) => (
-                      <Skeleton key={i} className="h-20 w-full" />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {recentPosts.map((post) => (
-                      <div key={post.id} className="border border-slate-200 rounded-lg p-4 hover:bg-slate-50 transition-colors">
-                        <h3 className="font-semibold text-slate-900 mb-1">{post.title.rendered}</h3>
-                        <p className="text-sm text-slate-600 mb-2 line-clamp-2">{post.excerpt.rendered.replace(/<[^>]*>/g, '')}</p>
-                        <div className="flex items-center justify-between text-xs text-slate-500">
-                          <span>{new Date(post.date).toLocaleDateString('es-MX')}</span>
-                          <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded">{post.status === 'publish' ? 'Publicado' : 'Borrador'}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="logs" className="mt-4">
-            <Card className="border-slate-200 shadow-sm">
-              <CardHeader>
-                <CardTitle>Historial de Publicaciones</CardTitle>
-                <CardDescription>Últimas acciones ejecutadas</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {loading || recentLogs.length === 0 ? (
-                  <div className="space-y-3">
-                    {[...Array(3)].map((_, i) => (
-                      <Skeleton key={i} className="h-16 w-full" />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {recentLogs.map((log) => (
-                      <div key={log.id} className="flex items-center justify-between p-3 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
-                        <div className="flex items-center gap-3 flex-1">
-                          <div className="flex-shrink-0">
-                            {statusIcons[log.status as keyof typeof statusIcons]}
-                          </div>
-                          <div className="flex-1">
-                            <p className="font-medium text-slate-900">{log.action}</p>
-                            <p className="text-xs text-slate-500">{log.time}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <span className={`px-2 py-1 rounded text-xs font-medium border ${statusColors[log.status as keyof typeof statusColors]}`}>
-                            {log.status}
-                          </span>
-                          <span className="text-sm font-medium text-slate-700">{log.articles} artículos</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="sources" className="mt-4">
-            <Card className="border-slate-200 shadow-sm">
-              <CardHeader>
-                <CardTitle>Fuentes RSS Configuradas</CardTitle>
-                <CardDescription>Categorías de contenido activas</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {loading || rssSources.length === 0 ? (
-                  <div className="space-y-3">
-                    {[...Array(3)].map((_, i) => (
-                      <Skeleton key={i} className="h-16 w-full" />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {rssSources.map((source, idx) => (
-                      <div key={idx} className="p-3 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <p className="font-medium text-slate-900">{source.name}</p>
-                            <p className="text-xs text-slate-500 mt-1 truncate">{source.url}</p>
-                          </div>
-                          <span className="text-sm font-medium text-slate-700 ml-4">{source.articles}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="settings" className="mt-4">
-            <Card className="border-slate-200 shadow-sm">
-              <CardHeader>
-                <CardTitle>Configuración del Dashboard</CardTitle>
-                <CardDescription>Personaliza tu experiencia</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="text-sm font-medium text-blue-900">Datos en Tiempo Real</p>
-                    <p className="text-xs text-blue-700 mt-1">Este dashboard se actualiza automáticamente cada 30 segundos con los últimos datos de tu WordPress.</p>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between p-3 border border-slate-200 rounded-lg">
-                      <span className="text-sm font-medium text-slate-900">Notificaciones por correo</span>
-                      <input type="checkbox" defaultChecked className="w-4 h-4 rounded" />
-                    </div>
-                    <div className="flex items-center justify-between p-3 border border-slate-200 rounded-lg">
-                      <span className="text-sm font-medium text-slate-900">Resumen diario</span>
-                      <input type="checkbox" defaultChecked className="w-4 h-4 rounded" />
-                    </div>
-                    <div className="flex items-center justify-between p-3 border border-slate-200 rounded-lg">
-                      <span className="text-sm font-medium text-slate-900">Alertas de errores</span>
-                      <input type="checkbox" defaultChecked className="w-4 h-4 rounded" />
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </main>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }
