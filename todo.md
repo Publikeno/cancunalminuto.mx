@@ -34,6 +34,6 @@
 - [x] Escribir tests vitest para importador RSS (15 tests pasando)
 - [x] Verificar que el sitio funciona correctamente con noticias reales
 - [x] Crear checkpoint final
-- [ ] Crear cron heartbeat cada 30 min post-deploy (manus-heartbeat create)
+- [x] Crear cron heartbeat cada 30 min - task_uid: a4ccnF3DuY8qd4fqjuS2kJ
 - [ ] Respaldar en GitHub (requiere token PAT del usuario)
 - [ ] Configurar dominio cancunalminuto.mx
