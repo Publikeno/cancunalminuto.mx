@@ -28,10 +28,12 @@
 
 ## Automatización RSS
 - [x] Fuentes RSS verificadas y activas (Noticaribe, Diario de Yucatán, Vanguardia MX, Latinus, Mexico News Daily, El Siglo de Torreón)
-- [ ] Configurar job de importación automática cada 30 minutos (heartbeat)
+- [x] Configurar job de importación automática cada 30 minutos (heartbeat) - endpoint /api/scheduled/import-rss listo
 
 ## Pruebas y Deploy
 - [x] Escribir tests vitest para importador RSS (15 tests pasando)
 - [x] Verificar que el sitio funciona correctamente con noticias reales
-- [ ] Crear checkpoint y respaldar en GitHub
+- [x] Crear checkpoint final
+- [ ] Crear cron heartbeat cada 30 min post-deploy (manus-heartbeat create)
+- [ ] Respaldar en GitHub (requiere token PAT del usuario)
 - [ ] Configurar dominio cancunalminuto.mx
