@@ -3,6 +3,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -34,6 +35,7 @@ import { getLoginUrl } from "@/const";
 import {
   AlertTriangle,
   CheckCircle,
+  CheckSquare,
   Eye,
   EyeOff,
   Loader2,
@@ -42,7 +44,10 @@ import {
   Rss,
   Search,
   Shield,
+  Tag,
   Trash2,
+  X,
+  XCircle,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -56,6 +61,12 @@ const categoryColors: Record<string, string> = {
   "Deportes": "bg-orange-100 text-orange-700",
   "General": "bg-slate-100 text-slate-700",
 };
+
+const SUGGESTED_TAGS = [
+  "Seguridad", "Política", "Economía", "Turismo", "Cultura",
+  "Educación", "Salud", "Medio Ambiente", "Tecnología", "Entretenimiento",
+  "Accidente", "Crimen", "Gobierno", "Empresas", "Internacional",
+];
 
 // ── Formulario para agregar fuente ────────────────────────────────────────────
 function AddSourceDialog({
@@ -93,32 +104,18 @@ function AddSourceDialog({
         <div className="space-y-4 py-2">
           <div className="space-y-1">
             <Label htmlFor="src-name">Nombre</Label>
-            <Input
-              id="src-name"
-              placeholder="Ej: Noticaribe"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
+            <Input id="src-name" placeholder="Ej: Noticaribe" value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div className="space-y-1">
             <Label htmlFor="src-url">URL del feed RSS</Label>
-            <Input
-              id="src-url"
-              placeholder="https://ejemplo.com/feed/"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-            />
+            <Input id="src-url" placeholder="https://ejemplo.com/feed/" value={url} onChange={(e) => setUrl(e.target.value)} />
           </div>
           <div className="space-y-1">
-            <Label>Categoría</Label>
+            <Label>Categoría por defecto</Label>
             <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
+              <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {CATEGORIES.map((c) => (
-                  <SelectItem key={c} value={c}>{c}</SelectItem>
-                ))}
+                {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -130,12 +127,394 @@ function AddSourceDialog({
             disabled={!name || !url || addMutation.isPending}
             onClick={() => addMutation.mutate({ name, url, category })}
           >
-            {addMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+            {addMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
             Agregar
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ── Modal de moderación individual ───────────────────────────────────────────
+function ModerateDialog({
+  article,
+  onClose,
+  onSuccess,
+}: {
+  article: { id: number; title: string; category: string; tags: string | null; sourceName: string; excerpt: string | null };
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [category, setCategory] = useState(article.category);
+  const [tags, setTags] = useState<string[]>(() => {
+    try { return article.tags ? JSON.parse(article.tags) : []; } catch { return []; }
+  });
+  const [tagInput, setTagInput] = useState("");
+
+  const moderateMutation = trpc.admin.moderateArticle.useMutation({
+    onSuccess: () => { onSuccess(); onClose(); },
+    onError: (e) => toast.error(`Error: ${e.message}`),
+  });
+
+  const addTag = (tag: string) => {
+    const t = tag.trim();
+    if (t && !tags.includes(t)) setTags([...tags, t]);
+    setTagInput("");
+  };
+
+  const removeTag = (tag: string) => setTags(tags.filter((t) => t !== tag));
+
+  const handlePublish = () => {
+    moderateMutation.mutate({ id: article.id, status: "published", category, tags });
+    toast.success("✅ Artículo publicado");
+  };
+
+  const handleReject = () => {
+    moderateMutation.mutate({ id: article.id, status: "rejected", category, tags });
+    toast.info("Artículo rechazado");
+  };
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-sm">
+            <Tag className="w-4 h-4 text-blue-600" />
+            Clasificar y moderar artículo
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 py-1">
+          {/* Título y fuente */}
+          <div className="bg-slate-50 rounded-lg p-3 space-y-1">
+            <p className="text-sm font-semibold line-clamp-3">{article.title}</p>
+            <p className="text-xs text-slate-500">{article.sourceName}</p>
+            {article.excerpt && (
+              <p className="text-xs text-slate-600 line-clamp-2 mt-1">{article.excerpt}</p>
+            )}
+          </div>
+
+          {/* Categoría */}
+          <div className="space-y-1">
+            <Label>Categoría</Label>
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Etiquetas */}
+          <div className="space-y-2">
+            <Label>Etiquetas</Label>
+            <div className="flex gap-2">
+              <Input
+                placeholder="Agregar etiqueta..."
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(tagInput); } }}
+                className="flex-1"
+              />
+              <Button size="sm" variant="outline" onClick={() => addTag(tagInput)} disabled={!tagInput.trim()}>
+                <Plus className="w-4 h-4" />
+              </Button>
+            </div>
+
+            {/* Etiquetas actuales */}
+            {tags.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {tags.map((tag) => (
+                  <Badge key={tag} variant="secondary" className="gap-1 text-xs bg-blue-100 text-blue-700">
+                    {tag}
+                    <button onClick={() => removeTag(tag)} className="hover:text-red-600">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
+
+            {/* Sugerencias */}
+            <div className="flex flex-wrap gap-1">
+              {SUGGESTED_TAGS.filter((t) => !tags.includes(t)).slice(0, 8).map((tag) => (
+                <button
+                  key={tag}
+                  onClick={() => addTag(tag)}
+                  className="text-xs px-2 py-0.5 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors"
+                >
+                  + {tag}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button
+            variant="outline"
+            className="border-red-200 text-red-600 hover:bg-red-50"
+            disabled={moderateMutation.isPending}
+            onClick={handleReject}
+          >
+            <XCircle className="w-4 h-4 mr-1" />
+            Rechazar
+          </Button>
+          <Button
+            className="bg-green-600 hover:bg-green-700 text-white"
+            disabled={moderateMutation.isPending}
+            onClick={handlePublish}
+          >
+            {moderateMutation.isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin mr-1" />
+            ) : (
+              <CheckCircle className="w-4 h-4 mr-1" />
+            )}
+            Publicar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Panel de Moderación ───────────────────────────────────────────────────────
+function ModerationPanel() {
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"pending" | "published" | "rejected" | "all">("pending");
+  const [offset, setOffset] = useState(0);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [moderatingArticle, setModeratingArticle] = useState<null | {
+    id: number; title: string; category: string; tags: string | null; sourceName: string; excerpt: string | null;
+  }>(null);
+
+  const LIMIT = 20;
+
+  const { data: pendingCount, refetch: refetchCount } = trpc.admin.getPendingCount.useQuery();
+
+  const { data, isLoading, refetch } = trpc.admin.getArticlesByStatus.useQuery({
+    status: statusFilter,
+    limit: LIMIT,
+    offset,
+    search: search || undefined,
+  });
+
+  const bulkMutation = trpc.admin.bulkModerate.useMutation({
+    onSuccess: (res) => {
+      toast.success(`${res.count} artículos actualizados`);
+      setSelectedIds([]);
+      refetch();
+      refetchCount();
+    },
+    onError: (e) => toast.error(`Error: ${e.message}`),
+  });
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleAll = () => {
+    if (!data?.items) return;
+    const allIds = data.items.map((a) => a.id);
+    setSelectedIds(selectedIds.length === allIds.length ? [] : allIds);
+  };
+
+  const statusBadge = (status: string) => {
+    if (status === "published") return <Badge className="text-xs bg-green-100 text-green-700 border-0">Publicado</Badge>;
+    if (status === "rejected") return <Badge className="text-xs bg-red-100 text-red-700 border-0">Rechazado</Badge>;
+    return <Badge className="text-xs bg-amber-100 text-amber-700 border-0">Pendiente</Badge>;
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Filtros */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <Input
+            className="pl-9"
+            placeholder="Buscar artículos..."
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setOffset(0); }}
+          />
+        </div>
+        <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v as typeof statusFilter); setOffset(0); setSelectedIds([]); }}>
+          <SelectTrigger className="w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="pending">
+              Pendientes {pendingCount?.count ? `(${pendingCount.count})` : ""}
+            </SelectItem>
+            <SelectItem value="published">Publicados</SelectItem>
+            <SelectItem value="rejected">Rechazados</SelectItem>
+            <SelectItem value="all">Todos</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {/* Acciones en lote */}
+        {selectedIds.length > 0 && (
+          <div className="flex items-center gap-2 ml-auto">
+            <span className="text-sm text-slate-500">{selectedIds.length} seleccionados</span>
+            <Button
+              size="sm"
+              className="bg-green-600 hover:bg-green-700 text-white gap-1"
+              disabled={bulkMutation.isPending}
+              onClick={() => bulkMutation.mutate({ ids: selectedIds, status: "published" })}
+            >
+              <CheckSquare className="w-4 h-4" />
+              Publicar todos
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-red-200 text-red-600 hover:bg-red-50 gap-1"
+              disabled={bulkMutation.isPending}
+              onClick={() => bulkMutation.mutate({ ids: selectedIds, status: "rejected" })}
+            >
+              <XCircle className="w-4 h-4" />
+              Rechazar todos
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* Tabla */}
+      {isLoading ? (
+        <div className="space-y-2">
+          {[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-14 w-full" />)}
+        </div>
+      ) : (
+        <>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-10">
+                    <Checkbox
+                      checked={selectedIds.length > 0 && selectedIds.length === data?.items.length}
+                      onCheckedChange={toggleAll}
+                    />
+                  </TableHead>
+                  <TableHead>Título</TableHead>
+                  <TableHead>Fuente</TableHead>
+                  <TableHead>Categoría</TableHead>
+                  <TableHead>Etiquetas</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data?.items.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center text-slate-400 py-8">
+                      No hay artículos {statusFilter === "pending" ? "pendientes" : "en esta categoría"}
+                    </TableCell>
+                  </TableRow>
+                )}
+                {data?.items.map((article) => {
+                  const parsedTags: string[] = (() => {
+                    try { return article.tags ? JSON.parse(article.tags) : []; } catch { return []; }
+                  })();
+
+                  return (
+                    <TableRow key={article.id} className={selectedIds.includes(article.id) ? "bg-blue-50" : ""}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedIds.includes(article.id)}
+                          onCheckedChange={() => toggleSelect(article.id)}
+                        />
+                      </TableCell>
+                      <TableCell className="max-w-[250px]">
+                        <p className="text-sm font-medium line-clamp-2">{article.title}</p>
+                      </TableCell>
+                      <TableCell className="text-xs text-slate-500 whitespace-nowrap">
+                        {article.sourceName}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="secondary"
+                          className={`text-xs ${categoryColors[article.category] || categoryColors["General"]}`}
+                        >
+                          {article.category}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="max-w-[150px]">
+                        <div className="flex flex-wrap gap-1">
+                          {parsedTags.slice(0, 2).map((tag) => (
+                            <Badge key={tag} variant="secondary" className="text-xs bg-blue-50 text-blue-600 border-0">
+                              {tag}
+                            </Badge>
+                          ))}
+                          {parsedTags.length > 2 && (
+                            <span className="text-xs text-slate-400">+{parsedTags.length - 2}</span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>{statusBadge(article.status)}</TableCell>
+                      <TableCell className="text-xs text-slate-500 whitespace-nowrap">
+                        {new Date(article.publishedAt).toLocaleDateString("es-MX")}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-xs gap-1"
+                          onClick={() => setModeratingArticle({
+                            id: article.id,
+                            title: article.title,
+                            category: article.category,
+                            tags: article.tags ?? null,
+                            sourceName: article.sourceName,
+                            excerpt: article.excerpt ?? null,
+                          })}
+                        >
+                          <Tag className="w-3 h-3" />
+                          Clasificar
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Paginación */}
+          {data && data.total > LIMIT && (
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-slate-500">
+                Mostrando {offset + 1}–{Math.min(offset + LIMIT, data.total)} de {data.total}
+              </p>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - LIMIT))}>
+                  Anterior
+                </Button>
+                <Button size="sm" variant="outline" disabled={offset + LIMIT >= data.total} onClick={() => setOffset(offset + LIMIT)}>
+                  Siguiente
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Modal de moderación */}
+      {moderatingArticle && (
+        <ModerateDialog
+          article={moderatingArticle}
+          onClose={() => setModeratingArticle(null)}
+          onSuccess={() => { refetch(); refetchCount(); }}
+        />
+      )}
+    </div>
   );
 }
 
@@ -146,7 +525,7 @@ function SourcesPanel() {
 
   const importMutation = trpc.admin.importNow.useMutation({
     onSuccess: (data) => {
-      toast.success(`✅ Importados ${data.imported} artículos de ${data.sources.length} fuentes`);
+      toast.success(`✅ Importados ${data.imported} artículos de ${data.sources.length} fuentes — ahora clasifícalos en Moderación`);
       refetch();
     },
     onError: (e) => toast.error(`Error al importar: ${e.message}`),
@@ -158,10 +537,7 @@ function SourcesPanel() {
   });
 
   const deleteMutation = trpc.admin.deleteSource.useMutation({
-    onSuccess: () => {
-      toast.success("Fuente eliminada");
-      refetch();
-    },
+    onSuccess: () => { toast.success("Fuente eliminada"); refetch(); },
     onError: (e) => toast.error(`Error: ${e.message}`),
   });
 
@@ -172,12 +548,7 @@ function SourcesPanel() {
           {sources ? `${sources.length} fuentes configuradas` : "Cargando..."}
         </p>
         <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setShowAdd(true)}
-            className="gap-1"
-          >
+          <Button size="sm" variant="outline" onClick={() => setShowAdd(true)} className="gap-1">
             <Plus className="w-4 h-4" /> Agregar fuente
           </Button>
           <Button
@@ -193,9 +564,7 @@ function SourcesPanel() {
       </div>
 
       {isLoading ? (
-        <div className="space-y-2">
-          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-16 w-full" />)}
-        </div>
+        <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
       ) : (
         <div className="rounded-md border">
           <Table>
@@ -214,54 +583,30 @@ function SourcesPanel() {
                 <TableRow key={source.id}>
                   <TableCell className="font-medium">{source.name}</TableCell>
                   <TableCell>
-                    <Badge
-                      variant="secondary"
-                      className={`text-xs ${categoryColors[source.category] || categoryColors["General"]}`}
-                    >
+                    <Badge variant="secondary" className={`text-xs ${categoryColors[source.category] || categoryColors["General"]}`}>
                       {source.category}
                     </Badge>
                   </TableCell>
-                  <TableCell className="max-w-[200px] truncate text-xs text-slate-500">
-                    {source.url}
-                  </TableCell>
+                  <TableCell className="max-w-[200px] truncate text-xs text-slate-500">{source.url}</TableCell>
                   <TableCell className="text-xs text-slate-500">
-                    {source.lastFetched
-                      ? new Date(source.lastFetched).toLocaleString("es-MX")
-                      : "Nunca"}
+                    {source.lastFetched ? new Date(source.lastFetched).toLocaleString("es-MX") : "Nunca"}
                   </TableCell>
                   <TableCell>
-                    <Badge
-                      variant="secondary"
-                      className={source.active ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}
-                    >
+                    <Badge variant="secondary" className={source.active ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}>
                       {source.active ? "Activa" : "Inactiva"}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
                       <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 px-2 text-xs"
-                        onClick={() =>
-                          toggleMutation.mutate({ id: source.id, active: !source.active })
-                        }
+                        size="sm" variant="ghost" className="h-7 px-2"
+                        onClick={() => toggleMutation.mutate({ id: source.id, active: !source.active })}
                       >
-                        {source.active ? (
-                          <EyeOff className="w-3 h-3" />
-                        ) : (
-                          <Eye className="w-3 h-3" />
-                        )}
+                        {source.active ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
                       </Button>
                       <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
-                        onClick={() => {
-                          if (confirm(`¿Eliminar la fuente "${source.name}"?`)) {
-                            deleteMutation.mutate({ id: source.id });
-                          }
-                        }}
+                        size="sm" variant="ghost" className="h-7 px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => { if (confirm(`¿Eliminar la fuente "${source.name}"?`)) deleteMutation.mutate({ id: source.id }); }}
                       >
                         <Trash2 className="w-3 h-3" />
                       </Button>
@@ -274,26 +619,18 @@ function SourcesPanel() {
         </div>
       )}
 
-      <AddSourceDialog
-        open={showAdd}
-        onClose={() => setShowAdd(false)}
-        onSuccess={() => refetch()}
-      />
+      <AddSourceDialog open={showAdd} onClose={() => setShowAdd(false)} onSuccess={() => refetch()} />
     </div>
   );
 }
 
-// ── Panel de artículos ────────────────────────────────────────────────────────
+// ── Panel de artículos publicados ─────────────────────────────────────────────
 function ArticlesPanel() {
   const [search, setSearch] = useState("");
   const [offset, setOffset] = useState(0);
   const LIMIT = 30;
 
-  const { data, isLoading, refetch } = trpc.admin.getArticles.useQuery({
-    limit: LIMIT,
-    offset,
-    search: search || undefined,
-  });
+  const { data, isLoading, refetch } = trpc.admin.getArticles.useQuery({ limit: LIMIT, offset, search: search || undefined });
 
   const hideMutation = trpc.admin.hideArticle.useMutation({
     onSuccess: () => refetch(),
@@ -301,10 +638,7 @@ function ArticlesPanel() {
   });
 
   const deleteMutation = trpc.admin.deleteArticle.useMutation({
-    onSuccess: () => {
-      toast.success("Artículo eliminado");
-      refetch();
-    },
+    onSuccess: () => { toast.success("Artículo eliminado"); refetch(); },
     onError: (e) => toast.error(`Error: ${e.message}`),
   });
 
@@ -313,22 +647,13 @@ function ArticlesPanel() {
       <div className="flex items-center gap-2">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <Input
-            className="pl-9"
-            placeholder="Buscar artículos..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setOffset(0); }}
-          />
+          <Input className="pl-9" placeholder="Buscar artículos..." value={search} onChange={(e) => { setSearch(e.target.value); setOffset(0); }} />
         </div>
-        <p className="text-sm text-slate-500">
-          {data ? `${data.total} artículos en total` : ""}
-        </p>
+        <p className="text-sm text-slate-500">{data ? `${data.total} artículos` : ""}</p>
       </div>
 
       {isLoading ? (
-        <div className="space-y-2">
-          {[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
-        </div>
+        <div className="space-y-2">{[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
       ) : (
         <>
           <div className="rounded-md border">
@@ -339,7 +664,7 @@ function ArticlesPanel() {
                   <TableHead>Fuente</TableHead>
                   <TableHead>Categoría</TableHead>
                   <TableHead>Fecha</TableHead>
-                  <TableHead>Estado</TableHead>
+                  <TableHead>Visibilidad</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -349,14 +674,9 @@ function ArticlesPanel() {
                     <TableCell className="max-w-[300px]">
                       <p className="text-sm font-medium line-clamp-2">{article.title}</p>
                     </TableCell>
-                    <TableCell className="text-xs text-slate-500 whitespace-nowrap">
-                      {article.sourceName}
-                    </TableCell>
+                    <TableCell className="text-xs text-slate-500 whitespace-nowrap">{article.sourceName}</TableCell>
                     <TableCell>
-                      <Badge
-                        variant="secondary"
-                        className={`text-xs ${categoryColors[article.category] || categoryColors["General"]}`}
-                      >
+                      <Badge variant="secondary" className={`text-xs ${categoryColors[article.category] || categoryColors["General"]}`}>
                         {article.category}
                       </Badge>
                     </TableCell>
@@ -364,43 +684,18 @@ function ArticlesPanel() {
                       {new Date(article.publishedAt).toLocaleDateString("es-MX")}
                     </TableCell>
                     <TableCell>
-                      {article.hidden ? (
-                        <Badge variant="secondary" className="text-xs bg-slate-100 text-slate-500">
-                          Oculto
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary" className="text-xs bg-green-100 text-green-700">
-                          Visible
-                        </Badge>
-                      )}
+                      <Badge variant="secondary" className={`text-xs ${article.hidden ? "bg-slate-100 text-slate-500" : "bg-green-100 text-green-700"}`}>
+                        {article.hidden ? "Oculto" : "Visible"}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-7 px-2"
-                          title={article.hidden ? "Mostrar" : "Ocultar"}
-                          onClick={() =>
-                            hideMutation.mutate({ id: article.id, hidden: !article.hidden })
-                          }
-                        >
-                          {article.hidden ? (
-                            <Eye className="w-3 h-3 text-green-600" />
-                          ) : (
-                            <EyeOff className="w-3 h-3 text-slate-500" />
-                          )}
+                        <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => hideMutation.mutate({ id: article.id, hidden: !article.hidden })}>
+                          {article.hidden ? <Eye className="w-3 h-3 text-green-600" /> : <EyeOff className="w-3 h-3 text-slate-500" />}
                         </Button>
                         <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-7 px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
-                          title="Eliminar"
-                          onClick={() => {
-                            if (confirm("¿Eliminar este artículo permanentemente?")) {
-                              deleteMutation.mutate({ id: article.id });
-                            }
-                          }}
+                          size="sm" variant="ghost" className="h-7 px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => { if (confirm("¿Eliminar este artículo permanentemente?")) deleteMutation.mutate({ id: article.id }); }}
                         >
                           <Trash2 className="w-3 h-3" />
                         </Button>
@@ -412,29 +707,12 @@ function ArticlesPanel() {
             </Table>
           </div>
 
-          {/* Paginación */}
           {data && data.total > LIMIT && (
             <div className="flex items-center justify-between">
-              <p className="text-sm text-slate-500">
-                Mostrando {offset + 1}–{Math.min(offset + LIMIT, data.total)} de {data.total}
-              </p>
+              <p className="text-sm text-slate-500">Mostrando {offset + 1}–{Math.min(offset + LIMIT, data.total)} de {data.total}</p>
               <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={offset === 0}
-                  onClick={() => setOffset(Math.max(0, offset - LIMIT))}
-                >
-                  Anterior
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={offset + LIMIT >= data.total}
-                  onClick={() => setOffset(offset + LIMIT)}
-                >
-                  Siguiente
-                </Button>
+                <Button size="sm" variant="outline" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - LIMIT))}>Anterior</Button>
+                <Button size="sm" variant="outline" disabled={offset + LIMIT >= data.total} onClick={() => setOffset(offset + LIMIT)}>Siguiente</Button>
               </div>
             </div>
           )}
@@ -447,6 +725,7 @@ function ArticlesPanel() {
 // ── Página principal del Dashboard ────────────────────────────────────────────
 export default function Dashboard() {
   const { user, loading } = useAuth();
+  const { data: pendingCount } = trpc.admin.getPendingCount.useQuery(undefined, { enabled: !!user && user.role === "admin" });
 
   if (loading) {
     return (
@@ -464,13 +743,8 @@ export default function Dashboard() {
         <div className="flex flex-col items-center justify-center min-h-screen gap-4 text-center px-4">
           <Shield className="w-12 h-12 text-slate-400" />
           <h2 className="text-xl font-bold text-slate-800">Acceso restringido</h2>
-          <p className="text-slate-500 max-w-sm">
-            Debes iniciar sesión para acceder al panel de administración.
-          </p>
-          <Button
-            className="bg-red-600 hover:bg-red-700 text-white"
-            onClick={() => (window.location.href = getLoginUrl())}
-          >
+          <p className="text-slate-500 max-w-sm">Debes iniciar sesión para acceder al panel de administración.</p>
+          <Button className="bg-red-600 hover:bg-red-700 text-white" onClick={() => (window.location.href = getLoginUrl())}>
             Iniciar sesión
           </Button>
         </div>
@@ -484,9 +758,7 @@ export default function Dashboard() {
         <div className="flex flex-col items-center justify-center min-h-screen gap-4 text-center px-4">
           <AlertTriangle className="w-12 h-12 text-amber-400" />
           <h2 className="text-xl font-bold text-slate-800">Sin permisos de administrador</h2>
-          <p className="text-slate-500 max-w-sm">
-            Tu cuenta no tiene permisos de administrador. Contacta al propietario del sitio.
-          </p>
+          <p className="text-slate-500 max-w-sm">Tu cuenta no tiene permisos de administrador.</p>
         </div>
       </DashboardLayout>
     );
@@ -514,17 +786,48 @@ export default function Dashboard() {
 
         {/* Contenido */}
         <div className="p-4 max-w-6xl mx-auto">
-          <Tabs defaultValue="sources">
+          <Tabs defaultValue="moderation">
             <TabsList className="mb-4">
+              <TabsTrigger value="moderation" className="gap-2">
+                <Tag className="w-4 h-4" />
+                Moderación
+                {pendingCount && pendingCount.count > 0 && (
+                  <Badge className="ml-1 bg-amber-500 text-white text-xs px-1.5 py-0 h-4">
+                    {pendingCount.count}
+                  </Badge>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="sources" className="gap-2">
                 <Rss className="w-4 h-4" />
                 Fuentes RSS
               </TabsTrigger>
               <TabsTrigger value="articles" className="gap-2">
-                <Search className="w-4 h-4" />
+                <Eye className="w-4 h-4" />
                 Artículos
               </TabsTrigger>
             </TabsList>
+
+            <TabsContent value="moderation">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Tag className="w-4 h-4 text-amber-500" />
+                    Clasificar y publicar noticias
+                    {pendingCount && pendingCount.count > 0 && (
+                      <Badge className="bg-amber-100 text-amber-700 border-0 text-xs">
+                        {pendingCount.count} pendientes
+                      </Badge>
+                    )}
+                  </CardTitle>
+                  <p className="text-xs text-slate-500">
+                    Revisa cada noticia, asígnale categoría y etiquetas, luego publícala o recházala. También puedes seleccionar varias y publicarlas o rechazarlas en lote.
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <ModerationPanel />
+                </CardContent>
+              </Card>
+            </TabsContent>
 
             <TabsContent value="sources">
               <Card>
@@ -540,7 +843,7 @@ export default function Dashboard() {
             <TabsContent value="articles">
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base">Gestión de Artículos</CardTitle>
+                  <CardTitle className="text-base">Artículos Publicados</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ArticlesPanel />

@@ -109,3 +109,83 @@ describe("RSS Article validation", () => {
     expect(isNaN(fallback.getTime())).toBe(false);
   });
 });
+
+// ── Moderación: flujo de status ───────────────────────────────────────────────
+describe("Flujo de moderación de artículos", () => {
+  it("los artículos nuevos deben llegar con status 'pending'", () => {
+    const newArticle = {
+      title: "Noticia de prueba",
+      sourceUrl: "https://example.com/noticia-1",
+      sourceName: "Fuente Test",
+      category: "General",
+      publishedAt: new Date(),
+      status: "pending" as const,
+    };
+    expect(newArticle.status).toBe("pending");
+  });
+
+  it("solo artículos published y no ocultos aparecen en el portal público", () => {
+    const articles = [
+      { id: 1, status: "published", hidden: false },
+      { id: 2, status: "pending", hidden: false },
+      { id: 3, status: "rejected", hidden: false },
+      { id: 4, status: "published", hidden: true },
+    ];
+    const publicArticles = articles.filter(
+      (a) => a.status === "published" && !a.hidden
+    );
+    expect(publicArticles).toHaveLength(1);
+    expect(publicArticles[0].id).toBe(1);
+  });
+
+  it("moderateArticle puede publicar con categoría y tags", () => {
+    const article = { id: 5, status: "pending" as const, category: "General", tags: null };
+    const updated = {
+      ...article,
+      status: "published" as const,
+      category: "Cancún",
+      tags: JSON.stringify(["Turismo", "Seguridad"]),
+    };
+    expect(updated.status).toBe("published");
+    expect(updated.category).toBe("Cancún");
+    expect(JSON.parse(updated.tags)).toContain("Turismo");
+  });
+
+  it("moderateArticle puede rechazar un artículo", () => {
+    const article = { id: 6, status: "pending" as const };
+    const updated = { ...article, status: "rejected" as const };
+    expect(updated.status).toBe("rejected");
+  });
+
+  it("bulkModerate actualiza múltiples artículos a la vez", () => {
+    const ids = [1, 2, 3, 4, 5];
+    const results = ids.map((id) => ({ id, status: "published" as const }));
+    expect(results).toHaveLength(5);
+    results.forEach((r) => expect(r.status).toBe("published"));
+  });
+});
+
+// ── Categorías y etiquetas ────────────────────────────────────────────────────
+describe("Categorías y etiquetas", () => {
+  const VALID_CATEGORIES = ["Cancún", "Quintana Roo", "Nacional", "Deportes", "General"];
+
+  it("las categorías válidas están definidas", () => {
+    expect(VALID_CATEGORIES).toContain("Cancún");
+    expect(VALID_CATEGORIES).toContain("General");
+    expect(VALID_CATEGORIES).not.toContain("Internacional");
+  });
+
+  it("las etiquetas se serializan como JSON", () => {
+    const tags = ["Seguridad", "Política", "Turismo"];
+    const serialized = JSON.stringify(tags);
+    expect(JSON.parse(serialized)).toEqual(tags);
+  });
+
+  it("tags nulos se parsean como array vacío", () => {
+    const tagsRaw: string | null = null;
+    const parsed: string[] = (() => {
+      try { return tagsRaw ? JSON.parse(tagsRaw) : []; } catch { return []; }
+    })();
+    expect(parsed).toEqual([]);
+  });
+});

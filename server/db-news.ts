@@ -2,7 +2,7 @@ import { and, desc, eq, like, or, sql } from "drizzle-orm";
 import { articles, InsertArticle, InsertRssSource, rssSources } from "../drizzle/schema";
 import { getDb } from "./db";
 
-// ── Articles ──────────────────────────────────────────────────────────────────
+// ── Articles (public) ─────────────────────────────────────────────────────────
 
 export async function getArticles(opts: {
   limit?: number;
@@ -15,7 +15,8 @@ export async function getArticles(opts: {
 
   const { limit = 20, offset = 0, category, search } = opts;
 
-  const conditions = [eq(articles.hidden, false)];
+  // Solo artículos publicados y no ocultos
+  const conditions = [eq(articles.hidden, false), eq(articles.status, "published")];
   if (category && category !== "Todos") {
     conditions.push(eq(articles.category, category));
   }
@@ -27,20 +28,11 @@ export async function getArticles(opts: {
     if (searchCond) conditions.push(searchCond);
   }
 
-  const where = conditions.length > 0 ? and(...conditions) : undefined;
+  const where = and(...conditions);
 
   const [items, countResult] = await Promise.all([
-    db
-      .select()
-      .from(articles)
-      .where(where)
-      .orderBy(desc(articles.publishedAt))
-      .limit(limit)
-      .offset(offset),
-    db
-      .select({ count: sql<number>`count(*)` })
-      .from(articles)
-      .where(where),
+    db.select().from(articles).where(where).orderBy(desc(articles.publishedAt)).limit(limit).offset(offset),
+    db.select({ count: sql<number>`count(*)` }).from(articles).where(where),
   ]);
 
   return { items, total: Number(countResult[0]?.count ?? 0) };
@@ -49,7 +41,12 @@ export async function getArticles(opts: {
 export async function getLatestArticles(limit = 10) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(articles).where(eq(articles.hidden, false)).orderBy(desc(articles.publishedAt)).limit(limit);
+  return db
+    .select()
+    .from(articles)
+    .where(and(eq(articles.hidden, false), eq(articles.status, "published")))
+    .orderBy(desc(articles.publishedAt))
+    .limit(limit);
 }
 
 export async function getArticleById(id: number) {
@@ -62,14 +59,14 @@ export async function getArticleById(id: number) {
 export async function upsertArticle(article: InsertArticle) {
   const db = await getDb();
   if (!db) return;
-  // Avoid duplicates by sourceUrl
   const existing = await db
     .select({ id: articles.id })
     .from(articles)
     .where(eq(articles.sourceUrl, article.sourceUrl))
     .limit(1);
-  if (existing.length > 0) return; // already exists
-  await db.insert(articles).values(article);
+  if (existing.length > 0) return;
+  // Los nuevos artículos llegan como "pending" para moderación
+  await db.insert(articles).values({ ...article, status: "pending" });
 }
 
 export async function getCategories() {
@@ -78,6 +75,7 @@ export async function getCategories() {
   const result = await db
     .selectDistinct({ category: articles.category })
     .from(articles)
+    .where(eq(articles.status, "published"))
     .orderBy(articles.category);
   return result.map((r) => r.category);
 }
@@ -148,16 +146,26 @@ export async function deleteArticle(id: number) {
   await db.delete(articles).where(eq(articles.id, id));
 }
 
-export async function getAdminArticles(opts: { limit?: number; offset?: number; search?: string }) {
+export async function getAdminArticles(opts: {
+  limit?: number;
+  offset?: number;
+  search?: string;
+  status?: "pending" | "published" | "rejected" | "all";
+}) {
   const db = await getDb();
   if (!db) return { items: [], total: 0 };
 
-  const { limit = 30, offset = 0, search } = opts;
+  const { limit = 30, offset = 0, search, status = "all" } = opts;
   const conditions: ReturnType<typeof eq>[] = [];
+
+  if (status !== "all") {
+    conditions.push(eq(articles.status, status) as ReturnType<typeof eq>);
+  }
   if (search) {
     const searchCond = or(like(articles.title, `%${search}%`), like(articles.sourceName, `%${search}%`));
     if (searchCond) conditions.push(searchCond as ReturnType<typeof eq>);
   }
+
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
   const [items, countResult] = await Promise.all([
@@ -166,4 +174,36 @@ export async function getAdminArticles(opts: { limit?: number; offset?: number; 
   ]);
 
   return { items, total: Number(countResult[0]?.count ?? 0) };
+}
+
+// Moderación: actualizar status, categoría y tags de un artículo
+export async function moderateArticle(
+  id: number,
+  data: {
+    status: "pending" | "published" | "rejected";
+    category?: string;
+    tags?: string[];
+  }
+) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(articles)
+    .set({
+      status: data.status,
+      ...(data.category ? { category: data.category } : {}),
+      ...(data.tags !== undefined ? { tags: JSON.stringify(data.tags) } : {}),
+    })
+    .where(eq(articles.id, id));
+}
+
+// Contar artículos pendientes
+export async function countPendingArticles() {
+  const db = await getDb();
+  if (!db) return 0;
+  const result = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(articles)
+    .where(eq(articles.status, "pending"));
+  return Number(result[0]?.count ?? 0);
 }

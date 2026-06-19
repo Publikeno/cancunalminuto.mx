@@ -15,6 +15,13 @@
       "when": 1781892142016,
       "tag": "0001_careless_blindfold",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1781892855432,
+      "tag": "0002_bumpy_wild_pack",
+      "breakpoints": true
     }
   ]
 }

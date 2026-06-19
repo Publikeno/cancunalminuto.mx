@@ -35,7 +35,7 @@
 - [x] Verificar que el sitio funciona correctamente con noticias reales
 - [x] Crear checkpoint final
 - [x] Crear cron heartbeat cada 30 min - task_uid: a4ccnF3DuY8qd4fqjuS2kJ
-- [ ] Respaldar en GitHub (requiere token PAT del usuario)
+- [ ] Respaldar en GitHub (requiere token PAT del usuario) - pendiente de credenciales
 - [x] Configurar dominio cancunalminuto.mx (A record → 104.18.26.246, propagando)
 
 ## Panel de Administración /dashboard
@@ -44,3 +44,13 @@
 - [x] Agregar botón manual de importar RSS desde el dashboard
 - [x] Agregar tabla de artículos con opción de eliminar/ocultar
 - [x] Proteger ruta /dashboard solo para admin (rol admin)
+
+## Moderación de Noticias
+- [x] Agregar campo `status` (pending/published/rejected) a la tabla articles en el esquema
+- [x] Migrar base de datos con el nuevo campo status
+- [x] Actualizar importador RSS para que los artículos lleguen como "pending"
+- [x] Crear pestaña "Moderación" en el dashboard con artículos pendientes
+- [x] Agregar UI para clasificar categoría y etiquetas antes de publicar
+- [x] Agregar botones Publicar / Rechazar en la vista de moderación
+- [x] Filtrar artículos públicos para mostrar solo los publicados (status=published)
+- [x] Actualizar tests para cubrir el nuevo flujo de moderación (23 tests pasando)

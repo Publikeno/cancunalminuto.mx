@@ -49,6 +49,8 @@ export const articles = mysqlTable("articles", {
   category: varchar("category", { length: 100 }).notNull().default("General"),
   publishedAt: timestamp("publishedAt").notNull(),
   hidden: boolean("hidden").notNull().default(false),
+  status: mysqlEnum("status", ["pending", "published", "rejected"]).notNull().default("published"),
+  tags: text("tags"), // JSON array de strings
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
