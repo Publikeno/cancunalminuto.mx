@@ -210,10 +210,11 @@ export default function Home() {
           <div className="px-4 py-3 flex items-center justify-between gap-4">
             {/* Logo (visible en desktop) */}
             <div className="hidden md:flex items-center gap-2 shrink-0">
-              <div className="w-7 h-7 bg-red-600 rounded-md flex items-center justify-center">
-                <Zap className="w-4 h-4 text-white" />
-              </div>
-              <span className="font-bold text-slate-900">Cancún al Minuto</span>
+              <img
+                src="/manus-storage/cancunalminuto-logo_12e31705.jpg"
+                alt="Cancún al Minuto"
+                className="h-10 w-auto object-contain rounded"
+              />
             </div>
 
             {/* Buscador */}

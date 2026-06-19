@@ -23,10 +23,12 @@ import {
   Search,
   Shield,
   Trophy,
-  Zap,
 } from "lucide-react";
+
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
+
+const LOGO_URL = "/manus-storage/cancunalminuto-logo_12e31705.jpg";
 
 const menuItems = [
   { icon: Home, label: "Inicio", path: "/" },
@@ -122,13 +124,11 @@ function DashboardLayoutContent({
               </button>
               {!isCollapsed && (
                 <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-7 h-7 bg-red-600 rounded-md flex items-center justify-center shrink-0">
-                    <Zap className="w-4 h-4 text-white" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-bold text-sm text-slate-900 leading-tight truncate">Cancún al Minuto</p>
-                    <p className="text-[10px] text-slate-500 truncate">Noticias en tiempo real</p>
-                  </div>
+                  <img
+                    src={LOGO_URL}
+                    alt="Cancún al Minuto"
+                    className="h-9 w-auto object-contain rounded shrink-0"
+                  />
                 </div>
               )}
             </div>
@@ -188,10 +188,11 @@ function DashboardLayoutContent({
             <div className="flex items-center gap-2">
               <SidebarTrigger className="h-9 w-9 rounded-lg" />
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 bg-red-600 rounded flex items-center justify-center">
-                  <Zap className="w-3 h-3 text-white" />
-                </div>
-                <span className="font-bold text-sm text-slate-900">Cancún al Minuto</span>
+                <img
+                  src={LOGO_URL}
+                  alt="Cancún al Minuto"
+                  className="h-8 w-auto object-contain rounded"
+                />
               </div>
             </div>
             <button
