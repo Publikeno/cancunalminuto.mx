@@ -48,6 +48,7 @@ export const articles = mysqlTable("articles", {
   sourceName: varchar("sourceName", { length: 255 }).notNull(),
   category: varchar("category", { length: 100 }).notNull().default("General"),
   publishedAt: timestamp("publishedAt").notNull(),
+  hidden: boolean("hidden").notNull().default(false),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

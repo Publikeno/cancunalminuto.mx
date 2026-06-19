@@ -21,6 +21,7 @@ import {
   RefreshCw,
   Rss,
   Search,
+  Shield,
   Trophy,
   Zap,
 } from "lucide-react";
@@ -35,6 +36,7 @@ const menuItems = [
   { icon: Trophy, label: "Deportes", path: "/categoria/deportes" },
   { icon: Search, label: "Buscar", path: "/buscar" },
   { icon: Rss, label: "Fuentes RSS", path: "/fuentes" },
+  { icon: Shield, label: "Admin", path: "/dashboard" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";

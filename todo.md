@@ -36,4 +36,11 @@
 - [x] Crear checkpoint final
 - [x] Crear cron heartbeat cada 30 min - task_uid: a4ccnF3DuY8qd4fqjuS2kJ
 - [ ] Respaldar en GitHub (requiere token PAT del usuario)
-- [ ] Configurar dominio cancunalminuto.mx
+- [x] Configurar dominio cancunalminuto.mx (A record → 104.18.26.246, propagando)
+
+## Panel de Administración /dashboard
+- [x] Crear página /dashboard con panel de administración de feeds RSS
+- [x] Agregar tabla de gestión de fuentes RSS (agregar/editar/eliminar)
+- [x] Agregar botón manual de importar RSS desde el dashboard
+- [x] Agregar tabla de artículos con opción de eliminar/ocultar
+- [x] Proteger ruta /dashboard solo para admin (rol admin)

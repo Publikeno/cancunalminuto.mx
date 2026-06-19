@@ -1,0 +1,1 @@
+ALTER TABLE `articles` ADD `hidden` boolean DEFAULT false NOT NULL;
