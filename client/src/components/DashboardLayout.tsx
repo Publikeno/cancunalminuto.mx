@@ -28,7 +28,7 @@ import {
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 
-const LOGO_URL = "/manus-storage/cancunalminuto-logo_12e31705.jpg";
+const LOGO_URL = "/manus-storage/cancunalminuto-logo-transparent_341ac187.png";
 
 const menuItems = [
   { icon: Home, label: "Inicio", path: "/" },

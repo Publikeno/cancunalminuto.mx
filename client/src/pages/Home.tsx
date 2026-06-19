@@ -211,7 +211,7 @@ export default function Home() {
             {/* Logo (visible en desktop) */}
             <div className="hidden md:flex items-center gap-2 shrink-0">
               <img
-                src="/manus-storage/cancunalminuto-logo_12e31705.jpg"
+                src="/manus-storage/cancunalminuto-logo-transparent_341ac187.png"
                 alt="Cancún al Minuto"
                 className="h-10 w-auto object-contain rounded"
               />
