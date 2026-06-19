@@ -10,6 +10,15 @@ import Fuentes from "./pages/Fuentes";
 import Home from "./pages/Home";
 
 function Router() {
+  // Si el usuario accede desde admin.cancunalminuto.mx, mostrar siempre el Dashboard
+  const isAdminSubdomain =
+    typeof window !== "undefined" &&
+    window.location.hostname.startsWith("admin.");
+
+  if (isAdminSubdomain) {
+    return <Dashboard />;
+  }
+
   return (
     <Switch>
       <Route path="/" component={Home} />

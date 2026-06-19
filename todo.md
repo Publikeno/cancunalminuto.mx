@@ -35,7 +35,7 @@
 - [x] Verificar que el sitio funciona correctamente con noticias reales
 - [x] Crear checkpoint final
 - [x] Crear cron heartbeat cada 30 min - task_uid: a4ccnF3DuY8qd4fqjuS2kJ
-- [ ] Respaldar en GitHub (requiere token PAT del usuario) - pendiente de credenciales
+- [x] Respaldar en GitHub - https://github.com/Publikeno/cancunalminuto.mx
 - [x] Configurar dominio cancunalminuto.mx (A record → 104.18.26.246, propagando)
 
 ## Panel de Administración /dashboard
