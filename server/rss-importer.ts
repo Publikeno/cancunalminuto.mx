@@ -75,9 +75,13 @@ function parseXml(xml: string): ParsedFeed {
 }
 
 function extractTag(xml: string, tag: string): string {
-  const regex = new RegExp(`<${tag}[^>]*>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?<\\/${tag}>`, "i");
+  const regex = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, "i");
   const match = xml.match(regex);
-  return match ? match[1].trim() : "";
+  if (!match) return "";
+  let value = match[1].trim();
+  // Strip CDATA wrappers
+  value = value.replace(/^<!\[CDATA\[/, "").replace(/\]\]>$/, "").trim();
+  return value;
 }
 
 function extractAttr(xml: string, tag: string, attr: string): string {
