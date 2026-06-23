@@ -1,4 +1,4 @@
-import { useAuth } from "@/_core/hooks/useAuth";
+import { useAdminAuth } from "@/hooks/useAdminAuth";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -727,10 +727,10 @@ function ArticlesPanel() {
 
 // ── Página principal del Dashboard ────────────────────────────────────────────
 export default function Dashboard() {
-  const { user, loading } = useAuth();
-  const { data: pendingCount } = trpc.admin.getPendingCount.useQuery(undefined, { enabled: !!user && user.role === "admin" });
+  const { isAuthenticated, isLoading: authLoading, logout } = useAdminAuth();
+  const { data: pendingCount } = trpc.admin.getPendingCount.useQuery(undefined, { enabled: isAuthenticated });
 
-  if (loading) {
+  if (authLoading) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-screen">
@@ -740,31 +740,8 @@ export default function Dashboard() {
     );
   }
 
-  if (!user) {
-    return (
-      <DashboardLayout>
-        <div className="flex flex-col items-center justify-center min-h-screen gap-4 text-center px-4">
-          <Shield className="w-12 h-12 text-slate-400" />
-          <h2 className="text-xl font-bold text-slate-800">Acceso restringido</h2>
-          <p className="text-slate-500 max-w-sm">Debes iniciar sesión para acceder al panel de administración.</p>
-          <Button className="bg-red-600 hover:bg-red-700 text-white" onClick={() => (window.location.href = getLoginUrl())}>
-            Iniciar sesión
-          </Button>
-        </div>
-      </DashboardLayout>
-    );
-  }
-
-  if (user.role !== "admin") {
-    return (
-      <DashboardLayout>
-        <div className="flex flex-col items-center justify-center min-h-screen gap-4 text-center px-4">
-          <AlertTriangle className="w-12 h-12 text-amber-400" />
-          <h2 className="text-xl font-bold text-slate-800">Sin permisos de administrador</h2>
-          <p className="text-slate-500 max-w-sm">Tu cuenta no tiene permisos de administrador.</p>
-        </div>
-      </DashboardLayout>
-    );
+  if (!isAuthenticated) {
+    return null; // useAdminAuth redirige automáticamente a /admin/login
   }
 
   return (
@@ -782,7 +759,10 @@ export default function Dashboard() {
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle className="w-4 h-4 text-green-500" />
-              <span className="text-sm text-slate-600">Admin: {user.name || user.email}</span>
+              <span className="text-sm text-slate-600">Administrador</span>
+              <Button size="sm" variant="outline" className="h-7 text-xs ml-2" onClick={logout}>
+                Cerrar sesión
+              </Button>
             </div>
           </div>
         </div>

@@ -6,6 +6,7 @@ import { createRoot } from "react-dom/client";
 import superjson from "superjson";
 import App from "./App";
 import { getLoginUrl } from "./const";
+import { ADMIN_TOKEN_KEY } from "./hooks/useAdminAuth";
 import "./index.css";
 
 const queryClient = new QueryClient();
@@ -42,6 +43,10 @@ const trpcClient = trpc.createClient({
     httpBatchLink({
       url: "/api/trpc",
       transformer: superjson,
+      headers() {
+        const token = localStorage.getItem(ADMIN_TOKEN_KEY);
+        return token ? { "x-admin-token": token } : {};
+      },
       fetch(input, init) {
         return globalThis.fetch(input, {
           ...(init ?? {}),

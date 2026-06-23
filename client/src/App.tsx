@@ -4,6 +4,7 @@ import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import AdminLogin from "./pages/AdminLogin";
 import ArticleDetail from "./pages/ArticleDetail";
 import Categoria from "./pages/Categoria";
 import Dashboard from "./pages/Dashboard";
@@ -30,6 +31,7 @@ function Router() {
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/categoria/:slug" component={Categoria} />
       <Route path="/fuentes" component={Fuentes} />
+      <Route path="/admin/login" component={AdminLogin} />
       <Route path="/directorio" component={Directorio} />
       <Route path="/directorio/registrar" component={DirectorioRegistrar} />
       <Route path="/directorio/:id" component={DirectorioDetalle} />

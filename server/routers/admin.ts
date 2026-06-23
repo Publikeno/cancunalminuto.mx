@@ -1,5 +1,7 @@
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { adminProcedure, router } from "../_core/trpc";
+import { ENV } from "../_core/env";
+import { adminProcedure, publicProcedure, router } from "../_core/trpc";
 import {
   countPendingArticles,
   deleteArticle,
@@ -15,6 +17,35 @@ import {
 import { fetchAndImportRss } from "../rss-importer";
 
 export const adminRouter = router({
+  // ── Autenticación por contraseña ─────────────────────────────────────────
+  login: publicProcedure
+    .input(z.object({ password: z.string() }))
+    .mutation(({ input }) => {
+      const adminPwd = ENV.adminPassword;
+      if (!adminPwd || input.password !== adminPwd) {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "Contraseña incorrecta" });
+      }
+      // Devuelve un token simple firmado con la contraseña para validación futura
+      const token = Buffer.from(`admin:${adminPwd}:${Date.now()}`).toString("base64");
+      return { token };
+    }),
+
+  // Verifica si el token guardado en localStorage sigue siendo válido
+  verifyToken: publicProcedure
+    .input(z.object({ token: z.string() }))
+    .query(({ input }) => {
+      const adminPwd = ENV.adminPassword;
+      if (!adminPwd) return { valid: false };
+      try {
+        const decoded = Buffer.from(input.token, "base64").toString("utf-8");
+        const [prefix, pwd] = decoded.split(":");
+        const valid = prefix === "admin" && pwd === adminPwd;
+        return { valid };
+      } catch {
+        return { valid: false };
+      }
+    }),
+
   // ── Artículos ──────────────────────────────────────────────────────────────
   getArticles: adminProcedure
     .input(
