@@ -1,4 +1,5 @@
 import DashboardLayout from "@/components/DashboardLayout";
+import { ShareButtons } from "@/components/ShareButtons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -102,15 +103,22 @@ function ArticleCard({ article }: { article: any }) {
               {article.excerpt}
             </p>
           )}
-          <div className="flex items-center justify-between text-xs text-slate-400">
-            <div className="flex items-center gap-1">
+
+          {/* Fila inferior: tiempo + fuente + compartir */}
+          <div className="flex items-center justify-between gap-2 text-xs text-slate-400">
+            <div className="flex items-center gap-1 shrink-0">
               <Clock className="w-3 h-3" />
               <span>{timeAgo(article.publishedAt)}</span>
             </div>
-            <div className="flex items-center gap-1">
-              <span className="truncate max-w-[100px]">{article.sourceName}</span>
-              <ExternalLink className="w-3 h-3" />
+            <div className="flex items-center gap-1 min-w-0 shrink">
+              <span className="truncate max-w-[80px]">{article.sourceName}</span>
+              <ExternalLink className="w-3 h-3 shrink-0" />
             </div>
+          </div>
+
+          {/* Botones de compartir — aparecen al hacer hover en la tarjeta */}
+          <div className="mt-3 pt-3 border-t border-slate-100">
+            <ShareButtons url={article.sourceUrl} title={article.title} />
           </div>
         </div>
       </CardContent>
@@ -122,43 +130,49 @@ function ArticleCard({ article }: { article: any }) {
 function HeroArticle({ article }: { article: any }) {
   const catColor = categoryColors[article.category] || categoryColors["General"];
   return (
-    <a
-      href={article.sourceUrl}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="block group"
-    >
-      <div className="relative rounded-xl overflow-hidden h-80 bg-gradient-to-br from-slate-800 to-slate-900">
-        {article.imageUrl && (
-          <img
-            src={article.imageUrl}
-            alt={article.title}
-            className="w-full h-full object-cover opacity-60 group-hover:opacity-70 transition-opacity"
-            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-          />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 p-6">
-          <Badge className={`text-xs border mb-2 ${catColor}`} variant="outline">
-            {article.category}
-          </Badge>
-          <h2 className="text-white font-bold text-xl leading-tight mb-2 group-hover:text-red-300 transition-colors">
-            {article.title}
-          </h2>
-          {article.excerpt && (
-            <p className="text-slate-300 text-sm line-clamp-2 mb-3">{article.excerpt}</p>
+    <div className="relative group">
+      <a
+        href={article.sourceUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block"
+      >
+        <div className="relative rounded-xl overflow-hidden h-80 bg-gradient-to-br from-slate-800 to-slate-900">
+          {article.imageUrl && (
+            <img
+              src={article.imageUrl}
+              alt={article.title}
+              className="w-full h-full object-cover opacity-60 group-hover:opacity-70 transition-opacity"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+            />
           )}
-          <div className="flex items-center gap-3 text-xs text-slate-400">
-            <div className="flex items-center gap-1">
-              <Calendar className="w-3 h-3" />
-              <span>{formatDate(article.publishedAt)}</span>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+          <div className="absolute bottom-0 left-0 right-0 p-6">
+            <Badge className={`text-xs border mb-2 ${catColor}`} variant="outline">
+              {article.category}
+            </Badge>
+            <h2 className="text-white font-bold text-xl leading-tight mb-2 group-hover:text-red-300 transition-colors">
+              {article.title}
+            </h2>
+            {article.excerpt && (
+              <p className="text-slate-300 text-sm line-clamp-2 mb-3">{article.excerpt}</p>
+            )}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3 text-xs text-slate-400">
+                <div className="flex items-center gap-1">
+                  <Calendar className="w-3 h-3" />
+                  <span>{formatDate(article.publishedAt)}</span>
+                </div>
+                <span>•</span>
+                <span>{article.sourceName}</span>
+              </div>
+              {/* Botones de compartir en el hero — siempre visibles */}
+              <ShareButtons url={article.sourceUrl} title={article.title} alwaysVisible />
             </div>
-            <span>•</span>
-            <span>{article.sourceName}</span>
           </div>
         </div>
-      </div>
-    </a>
+      </a>
+    </div>
   );
 }
 
