@@ -15,7 +15,7 @@ import {
   Zap,
 } from "lucide-react";
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 
 const CATEGORIES = ["Todos", "Cancún", "Quintana Roo", "Nacional", "Deportes", "General"];
 
@@ -62,10 +62,8 @@ function ArticleCard({ article }: { article: any }) {
   const catColor = categoryColors[article.category] || categoryColors["General"];
 
   return (
-    <a
-      href={article.sourceUrl}
-      target="_blank"
-      rel="noopener noreferrer"
+    <Link
+      href={`/noticia/${article.id}`}
       className="block group"
     >
     <Card className="overflow-hidden hover:shadow-md transition-all duration-200 cursor-pointer border-slate-200">
@@ -123,7 +121,7 @@ function ArticleCard({ article }: { article: any }) {
         </div>
       </CardContent>
     </Card>
-    </a>
+    </Link>
   );
 }
 
@@ -131,10 +129,8 @@ function HeroArticle({ article }: { article: any }) {
   const catColor = categoryColors[article.category] || categoryColors["General"];
   return (
     <div className="relative group">
-      <a
-        href={article.sourceUrl}
-        target="_blank"
-        rel="noopener noreferrer"
+      <Link
+        href={`/noticia/${article.id}`}
         className="block"
       >
         <div className="relative rounded-xl overflow-hidden h-80 bg-gradient-to-br from-slate-800 to-slate-900">
@@ -171,7 +167,7 @@ function HeroArticle({ article }: { article: any }) {
             </div>
           </div>
         </div>
-      </a>
+      </Link>
     </div>
   );
 }
