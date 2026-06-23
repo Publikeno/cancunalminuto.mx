@@ -118,7 +118,7 @@ function ArticleCard({ article }: { article: any }) {
 
           {/* Botones de compartir — aparecen al hacer hover en la tarjeta */}
           <div className="mt-3 pt-3 border-t border-slate-100">
-            <ShareButtons url={article.sourceUrl} title={article.title} />
+            <ShareButtons url={article.sourceUrl} title={article.title} imageUrl={article.imageUrl} />
           </div>
         </div>
       </CardContent>
@@ -167,7 +167,7 @@ function HeroArticle({ article }: { article: any }) {
                 <span>{article.sourceName}</span>
               </div>
               {/* Botones de compartir en el hero — siempre visibles */}
-              <ShareButtons url={article.sourceUrl} title={article.title} alwaysVisible />
+              <ShareButtons url={article.sourceUrl} title={article.title} imageUrl={article.imageUrl} alwaysVisible />
             </div>
           </div>
         </div>
