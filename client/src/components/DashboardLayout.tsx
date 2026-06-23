@@ -184,23 +184,26 @@ function DashboardLayoutContent({
       <SidebarInset>
         {/* Top bar móvil */}
         {isMobile && (
-          <div className="flex border-b h-14 items-center justify-between bg-white px-3 sticky top-0 z-40">
-            <div className="flex items-center gap-2">
-              <SidebarTrigger className="h-9 w-9 rounded-lg" />
-              <div className="flex items-center gap-2">
-                <img
-                  src={LOGO_URL}
-                  alt="Cancún al Minuto"
-                  className="h-8 w-auto object-contain rounded"
-                />
-              </div>
+          <div className="relative flex border-b h-16 items-center bg-white px-3 sticky top-0 z-40">
+            {/* Botón hamburguesa - izquierda */}
+            <SidebarTrigger className="h-9 w-9 rounded-lg shrink-0" />
+            {/* Logo centrado absolutamente */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <img
+                src={LOGO_URL}
+                alt="Cancún al Minuto"
+                className="h-12 w-auto object-contain"
+              />
             </div>
-            <button
-              onClick={() => window.location.reload()}
-              className="h-8 w-8 flex items-center justify-center hover:bg-slate-100 rounded-lg"
-            >
-              <RefreshCw className="h-4 w-4 text-slate-500" />
-            </button>
+            {/* Botón actualizar - derecha */}
+            <div className="ml-auto">
+              <button
+                onClick={() => window.location.reload()}
+                className="h-9 w-9 flex items-center justify-center hover:bg-slate-100 rounded-lg"
+              >
+                <RefreshCw className="h-4 w-4 text-slate-500" />
+              </button>
+            </div>
           </div>
         )}
         <main className="flex-1">{children}</main>
