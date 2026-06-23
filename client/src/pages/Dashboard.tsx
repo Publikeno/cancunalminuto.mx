@@ -34,8 +34,10 @@ import { trpc } from "@/lib/trpc";
 import { getLoginUrl } from "@/const";
 import {
   AlertTriangle,
+  Building2,
   CheckCircle,
   CheckSquare,
+  Crown,
   Eye,
   EyeOff,
   Loader2,
@@ -44,6 +46,7 @@ import {
   Rss,
   Search,
   Shield,
+  Star,
   Tag,
   Trash2,
   X,
@@ -805,6 +808,10 @@ export default function Dashboard() {
                 <Eye className="w-4 h-4" />
                 Artículos
               </TabsTrigger>
+              <TabsTrigger value="directory" className="gap-2">
+                <Building2 className="w-4 h-4" />
+                Directorio
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="moderation">
@@ -850,9 +857,231 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
             </TabsContent>
+            <TabsContent value="directory">
+              <DirectoryAdminPanel />
+            </TabsContent>
           </Tabs>
         </div>
       </div>
     </DashboardLayout>
+  );
+}
+
+// ── Panel de administración del Directorio ────────────────────────────────────
+function DirectoryAdminPanel() {
+  const [tab, setTab] = useState<"listings" | "reviews" | "subscriptions">("listings");
+  const [statusFilter, setStatusFilter] = useState<"pending" | "active" | "suspended">("pending");
+
+  const { data: listings, refetch: refetchListings } = trpc.directory.adminList.useQuery({
+    status: statusFilter,
+    limit: 50,
+    offset: 0,
+  });
+
+  const { data: pendingReviews, refetch: refetchReviews } = trpc.directory.adminGetPendingReviews.useQuery();
+  const { data: subscriptions } = trpc.directory.adminGetSubscriptions.useQuery();
+
+  const approve = trpc.directory.adminApprove.useMutation({
+    onSuccess: () => { toast.success("Estado actualizado"); refetchListings(); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const moderateReview = trpc.directory.adminModerateReview.useMutation({
+    onSuccess: () => { toast.success("Reseña moderada"); refetchReviews(); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const updatePlan = trpc.directory.adminUpdatePlan.useMutation({
+    onSuccess: () => { toast.success("Plan actualizado"); refetchListings(); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const PLAN_COLORS: Record<string, string> = {
+    basico: "bg-gray-100 text-gray-700",
+    profesional: "bg-blue-100 text-blue-700",
+    premium: "bg-amber-100 text-amber-700",
+  };
+  const STATUS_COLORS: Record<string, string> = {
+    pending: "bg-amber-100 text-amber-700",
+    active: "bg-green-100 text-green-700",
+    suspended: "bg-red-100 text-red-700",
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Sub-tabs */}
+      <div className="flex gap-2 border-b border-border pb-2">
+        {(["listings", "reviews", "subscriptions"] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+              tab === t ? "bg-red-700 text-white" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {t === "listings" ? "Negocios" : t === "reviews" ? `Reseñas (${pendingReviews?.length ?? 0})` : "Suscripciones"}
+          </button>
+        ))}
+      </div>
+
+      {/* Negocios */}
+      {tab === "listings" && (
+        <div className="space-y-3">
+          <div className="flex gap-2">
+            {(["pending", "active", "suspended"] as const).map((s) => (
+              <button
+                key={s}
+                onClick={() => setStatusFilter(s)}
+                className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                  statusFilter === s ? "bg-foreground text-background" : "border-border text-muted-foreground hover:border-foreground"
+                }`}
+              >
+                {s === "pending" ? "Pendientes" : s === "active" ? "Activos" : "Suspendidos"}
+              </button>
+            ))}
+          </div>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Negocio</TableHead>
+                  <TableHead>Categoría</TableHead>
+                  <TableHead>Plan</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Visitas</TableHead>
+                  <TableHead>Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {listings?.items.length === 0 && (
+                  <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No hay negocios en este estado</TableCell></TableRow>
+                )}
+                {listings?.items.map((l) => (
+                  <TableRow key={l.id}>
+                    <TableCell>
+                      <div className="font-medium text-sm text-foreground">{l.name}</div>
+                      <div className="text-xs text-muted-foreground">{l.email ?? l.phone ?? "Sin contacto"}</div>
+                    </TableCell>
+                    <TableCell><span className="text-xs capitalize">{l.category}</span></TableCell>
+                    <TableCell>
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full capitalize ${PLAN_COLORS[l.plan] ?? ""}`}>
+                        {l.plan}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full capitalize ${STATUS_COLORS[l.status] ?? ""}`}>
+                        {l.status}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{l.viewCount}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        {l.status !== "active" && (
+                          <Button size="sm" variant="outline" className="h-7 text-xs text-green-700 border-green-300 hover:bg-green-50"
+                            onClick={() => approve.mutate({ id: l.id, status: "active" })}>
+                            Activar
+                          </Button>
+                        )}
+                        {l.status !== "suspended" && (
+                          <Button size="sm" variant="outline" className="h-7 text-xs text-red-700 border-red-300 hover:bg-red-50"
+                            onClick={() => approve.mutate({ id: l.id, status: "suspended" })}>
+                            Suspender
+                          </Button>
+                        )}
+                        <Button size="sm" variant="outline" className="h-7 text-xs"
+                          onClick={() => updatePlan.mutate({ listingId: l.id, plan: "premium", months: 1 })}>
+                          <Crown className="w-3 h-3 mr-1" /> Premium
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      )}
+
+      {/* Reseñas pendientes */}
+      {tab === "reviews" && (
+        <div className="space-y-3">
+          {pendingReviews?.length === 0 && (
+            <div className="text-center py-8 text-muted-foreground text-sm">No hay reseñas pendientes</div>
+          )}
+          {pendingReviews?.map((r) => (
+            <Card key={r.id}>
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-semibold text-sm text-foreground">{r.authorName}</span>
+                      <div className="flex">
+                        {[1,2,3,4,5].map((i) => (
+                          <Star key={i} className={`w-3 h-3 ${i <= r.rating ? "fill-amber-400 text-amber-400" : "text-gray-300"}`} />
+                        ))}
+                      </div>
+                      <span className="text-xs text-muted-foreground">Negocio #{r.listingId}</span>
+                    </div>
+                    {r.title && <p className="text-sm font-medium text-foreground">{r.title}</p>}
+                    {r.body && <p className="text-sm text-muted-foreground mt-1">{r.body}</p>}
+                  </div>
+                  <div className="flex gap-2 flex-shrink-0">
+                    <Button size="sm" className="h-7 text-xs bg-green-600 hover:bg-green-700 text-white"
+                      onClick={() => moderateReview.mutate({ id: r.id, status: "approved" })}>
+                      Aprobar
+                    </Button>
+                    <Button size="sm" variant="outline" className="h-7 text-xs text-red-700 border-red-300"
+                      onClick={() => moderateReview.mutate({ id: r.id, status: "rejected" })}>
+                      Rechazar
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Suscripciones activas */}
+      {tab === "subscriptions" && (
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Negocio ID</TableHead>
+                <TableHead>Plan</TableHead>
+                <TableHead>Precio/mes</TableHead>
+                <TableHead>Inicio</TableHead>
+                <TableHead>Vencimiento</TableHead>
+                <TableHead>Estado</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {subscriptions?.length === 0 && (
+                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No hay suscripciones activas</TableCell></TableRow>
+              )}
+              {subscriptions?.map((s) => (
+                <TableRow key={s.id}>
+                  <TableCell className="text-sm">{s.listingId}</TableCell>
+                  <TableCell>
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full capitalize ${PLAN_COLORS[s.plan] ?? ""}`}>
+                      {s.plan}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-sm">${s.priceMonthly.toLocaleString()} MXN</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{new Date(s.startDate).toLocaleDateString("es-MX")}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{new Date(s.endDate).toLocaleDateString("es-MX")}</TableCell>
+                  <TableCell>
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${s.status === "active" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                      {s.status}
+                    </span>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </div>
   );
 }

@@ -7,6 +7,9 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import ArticleDetail from "./pages/ArticleDetail";
 import Categoria from "./pages/Categoria";
 import Dashboard from "./pages/Dashboard";
+import Directorio from "./pages/Directorio";
+import DirectorioDetalle from "./pages/DirectorioDetalle";
+import DirectorioRegistrar from "./pages/DirectorioRegistrar";
 import Fuentes from "./pages/Fuentes";
 import Home from "./pages/Home";
 
@@ -27,6 +30,9 @@ function Router() {
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/categoria/:slug" component={Categoria} />
       <Route path="/fuentes" component={Fuentes} />
+      <Route path="/directorio" component={Directorio} />
+      <Route path="/directorio/registrar" component={DirectorioRegistrar} />
+      <Route path="/directorio/:id" component={DirectorioDetalle} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/useMobile";
 import {
+  Building2,
   Globe,
   Home,
   MapPin,
@@ -37,6 +38,7 @@ const menuItems = [
   { icon: Newspaper, label: "Nacional", path: "/categoria/nacional" },
   { icon: Trophy, label: "Deportes", path: "/categoria/deportes" },
   { icon: Search, label: "Buscar", path: "/buscar" },
+  { icon: Building2, label: "Directorio", path: "/directorio" },
   { icon: Rss, label: "Fuentes RSS", path: "/fuentes" },
   { icon: Shield, label: "Admin", path: "/dashboard" },
 ];

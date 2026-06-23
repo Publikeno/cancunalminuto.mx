@@ -54,3 +54,14 @@
 - [x] Agregar botones Publicar / Rechazar en la vista de moderación
 - [x] Filtrar artículos públicos para mostrar solo los publicados (status=published)
 - [x] Actualizar tests para cubrir el nuevo flujo de moderación (23 tests pasando)
+
+## Directorio Comercial
+- [x] Esquema BD: tablas directory_listings, directory_reviews, directory_subscriptions, directory_contacts
+- [x] Migrar esquema con pnpm db:push
+- [x] Helpers en db.ts para directorio (server/db-directory.ts)
+- [x] Router tRPC: directory.list, directory.getById, directory.create, directory.review, directory.contact
+- [x] Página /directorio: listado con filtros por categoría, búsqueda y mapa
+- [x] Página /directorio/:id: perfil completo de empresa con reseñas y formulario de contacto
+- [x] Sistema de suscripción: planes Básico/Profesional/Premium con badges
+- [x] Panel admin: gestión de listados y suscripciones (pestaña Directorio en /dashboard)
+- [x] Enlace al directorio en la navegación principal (sidebar)
