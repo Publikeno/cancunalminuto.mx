@@ -300,7 +300,17 @@ export default function DirectorioRegistrar() {
                 <Button
                   className="flex-1 bg-red-700 hover:bg-red-800 text-white"
                   disabled={register.isPending}
-                  onClick={() => register.mutate(form)}
+                  onClick={() => {
+                    // Normalizar strings vacíos a undefined para campos opcionales
+                    // (Zod rechaza "" en z.string().url() y z.string().email())
+                    const payload = Object.fromEntries(
+                      Object.entries(form).map(([k, v]) => [
+                        k,
+                        typeof v === "string" && v.trim() === "" ? undefined : v,
+                      ])
+                    ) as typeof form;
+                    register.mutate(payload);
+                  }}
                 >
                   {register.isPending ? "Registrando..." : "Registrar negocio"}
                 </Button>
